@@ -525,7 +525,7 @@ function GarageView({ vehicles, onSelectVehicle }) {
   );
 }
 
-function VehicleView({ vehicle, onBack, onSelectProject, onNewProject }) {
+function VehicleView({ vehicle, onBack, onSelectProject, onNewProject, onOpenFsmLibrary }) {
   return (
     <div style={css.section}>
       <BackButton onClick={onBack} label="Garage" />
@@ -543,7 +543,7 @@ function VehicleView({ vehicle, onBack, onSelectProject, onNewProject }) {
         </div>
         <div style={{ ...css.divider }} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button style={css.btnSmall("#818cf8")}>📄 FSM Library</button>
+          <button onClick={() => onOpenFsmLibrary && onOpenFsmLibrary()} style={css.btnSmall("#818cf8")}>📄 FSM Library</button>
           <button style={css.btnSmall("#06b6d4")}>📊 OBD2 Connect</button>
           <button style={css.btnSmall("#f59e0b")}>🕐 History</button>
         </div>
@@ -824,6 +824,282 @@ function ProjectView({ vehicle, project, onBack, onToggleStep, onUpdateNotes, on
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function FSMLibraryView({ vehicle, onBack }) {
+  const [crawlStatus, setCrawlStatus] = useState(null); // null | 'ready' | 'crawling' | 'done'
+  const [sections, setSections] = useState([]);
+  const [customUrl, setCustomUrl] = useState("");
+  const [selectedSource, setSelectedSource] = useState("nicoclub_nissan");
+  const [progress, setProgress] = useState({ total: 0, downloaded: 0, failed: 0 });
+
+  // NICOclub known sections for demo
+  const DEMO_SECTIONS = {
+    "leaf-2013": {
+      source: "nicoclub_nissan",
+      model: "Leaf",
+      year: "2013",
+      sections: [
+        { code: "FWD", name: "Intro - Table of Contents", status: "available" },
+        { code: "ACC", name: "Accelerator Control System", status: "available" },
+        { code: "AVN", name: "Audio, Visual and Navigation", status: "available" },
+        { code: "BCS", name: "Body Control System", status: "available" },
+        { code: "BR", name: "Brake System", status: "available" },
+        { code: "BRC", name: "Brake Control System", status: "available" },
+        { code: "BRM", name: "Body Repair Manual", status: "available" },
+        { code: "CCS", name: "Cruise Control System", status: "available" },
+        { code: "CHG", name: "Charging System", status: "available" },
+        { code: "DEF", name: "Defogger", status: "available" },
+        { code: "DLK", name: "Door and Lock", status: "available" },
+        { code: "EVB", name: "EV Battery", status: "available" },
+        { code: "EVC", name: "EV Control", status: "available" },
+        { code: "EXL", name: "Exterior Lighting", status: "available" },
+        { code: "EXT", name: "Exterior", status: "available" },
+        { code: "FAX", name: "Front Axle", status: "available" },
+        { code: "FSU", name: "Front Suspension", status: "available" },
+        { code: "GW", name: "Glass and Window System", status: "available" },
+        { code: "HA", name: "Heater and A/C System", status: "available" },
+        { code: "HAC", name: "Heater and A/C Control", status: "available" },
+        { code: "HRN", name: "Horn", status: "available" },
+        { code: "ILL", name: "Interior Lighting", status: "available" },
+        { code: "INT", name: "Interior", status: "available" },
+        { code: "IP", name: "Instrument Panel", status: "available" },
+        { code: "LAN", name: "LAN System", status: "available" },
+        { code: "MA", name: "Maintenance", status: "available" },
+        { code: "MIR", name: "Mirrors", status: "available" },
+        { code: "MWI", name: "Meter, Warning Lamp and Indicator", status: "available" },
+        { code: "PB", name: "Parking Brake", status: "available" },
+        { code: "PCS", name: "Power Control System", status: "available" },
+        { code: "PG", name: "Power Supply, Ground and Circuits", status: "available" },
+        { code: "PWC", name: "Power Window Control", status: "available" },
+        { code: "PWO", name: "Power Outlet", status: "available" },
+        { code: "RAX", name: "Rear Axle", status: "available" },
+        { code: "RSU", name: "Rear Suspension", status: "available" },
+        { code: "SB", name: "Seat Belt", status: "available" },
+        { code: "SE", name: "Seat", status: "available" },
+        { code: "SEC", name: "Security Control System", status: "available" },
+        { code: "SRS", name: "SRS Airbag", status: "available" },
+        { code: "SRSC", name: "SRS Airbag Control", status: "available" },
+        { code: "ST", name: "Steering System", status: "available" },
+        { code: "STC", name: "Steering Control System", status: "available" },
+        { code: "TM", name: "Transaxle and Transmission", status: "available" },
+        { code: "VTL", name: "Ventilation System", status: "available" },
+        { code: "WCS", name: "Warning Chime System", status: "available" },
+        { code: "WT", name: "Road Wheels and Tires", status: "available" },
+        { code: "WW", name: "Wiper and Washer", status: "available" },
+      ],
+    },
+  };
+
+  useEffect(() => {
+    const demo = DEMO_SECTIONS[vehicle.id];
+    if (demo) {
+      setSections(demo.sections);
+      setCrawlStatus("ready");
+    }
+  }, [vehicle.id]);
+
+  const simulateCrawl = () => {
+    setCrawlStatus("crawling");
+    let downloaded = 0;
+    const total = sections.length;
+    setProgress({ total, downloaded: 0, failed: 0 });
+
+    const interval = setInterval(() => {
+      downloaded++;
+      setSections(prev => prev.map((s, i) =>
+        i < downloaded ? { ...s, status: "downloaded" } : s
+      ));
+      setProgress(p => ({ ...p, downloaded }));
+      if (downloaded >= total) {
+        clearInterval(interval);
+        setCrawlStatus("done");
+      }
+    }, 200);
+  };
+
+  const sources = [
+    { id: "nicoclub_nissan", name: "NICOclub — Nissan", supported: ["Leaf"] },
+    { id: "nicoclub_infiniti", name: "NICOclub — Infiniti", supported: ["QX60"] },
+    { id: "custom_url", name: "Custom URL / Upload", supported: ["any"] },
+  ];
+
+  return (
+    <div style={css.section}>
+      <BackButton onClick={onBack} label={`${vehicle.year} ${vehicle.make}`} />
+
+      {/* Header */}
+      <div style={{
+        padding: 16, background: "#080a14", borderRadius: 10,
+        border: "1px solid #1a1a3e", marginBottom: 12,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 20 }}>📄</span>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#818cf8" }}>FSM LIBRARY</div>
+        </div>
+        <div style={{ fontSize: 13, color: textPri }}>
+          {vehicle.year} {vehicle.make} {vehicle.model}
+        </div>
+        <div style={{ fontSize: 11, color: textSec, marginTop: 4 }}>
+          {sections.filter(s => s.status === "downloaded").length} of {sections.length} sections downloaded
+        </div>
+        {sections.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ height: 3, background: "#1a1a24", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${(sections.filter(s => s.status === "downloaded").length / sections.length) * 100}%`,
+                background: "#818cf8", borderRadius: 2, transition: "width 0.3s ease",
+              }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Source Selector */}
+      <div style={{
+        padding: 12, background: surface, borderRadius: 8,
+        border: `1px solid ${border}`, marginBottom: 12,
+      }}>
+        <div style={{ fontSize: 10, color: textSec, letterSpacing: 2, marginBottom: 8 }}>SOURCE</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {sources.map(s => (
+            <button key={s.id} onClick={() => setSelectedSource(s.id)} style={{
+              ...css.card, marginBottom: 0, padding: "10px 12px", cursor: "pointer",
+              borderColor: selectedSource === s.id ? "#818cf8" : border,
+              background: selectedSource === s.id ? "#818cf808" : surface,
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: selectedSource === s.id ? "#818cf8" : textPri }}>
+                  {s.name}
+                </div>
+                <div style={{ fontSize: 10, color: textDim }}>
+                  {s.id === "custom_url" ? "Paste URL or upload PDF" : `Models: ${s.supported.join(", ")}`}
+                </div>
+              </div>
+              {selectedSource === s.id && <span style={{ color: "#818cf8" }}>●</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* URL Input for custom sources */}
+      {selectedSource === "custom_url" && (
+        <div style={{
+          padding: 12, background: surface, borderRadius: 8,
+          border: `1px solid ${border}`, marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 10, color: textSec, letterSpacing: 2, marginBottom: 8 }}>IMPORT URL</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={customUrl}
+              onChange={e => setCustomUrl(e.target.value)}
+              placeholder="Paste FSM page URL or direct PDF link..."
+              style={{ ...css.input, flex: 1, fontSize: 12 }}
+            />
+            <button style={css.btnSmall("#818cf8")}>Scan</button>
+          </div>
+          <div style={{ fontSize: 10, color: textDim, marginTop: 6, lineHeight: 1.5 }}>
+            Paste a page with PDF links and we'll find them all, or drop in a direct PDF link.
+          </div>
+        </div>
+      )}
+
+      {/* Crawl Action */}
+      {crawlStatus === "ready" && selectedSource !== "custom_url" && (
+        <button onClick={simulateCrawl} style={{ ...css.btn("#818cf8"), marginBottom: 12 }}>
+          ↓ DOWNLOAD ALL {sections.length} SECTIONS
+        </button>
+      )}
+
+      {crawlStatus === "crawling" && (
+        <div style={{
+          padding: 12, background: "#080a14", borderRadius: 8,
+          border: "1px solid #1a1a3e", marginBottom: 12, textAlign: "center",
+        }}>
+          <div style={{ fontSize: 13, color: "#818cf8", marginBottom: 8 }}>
+            Downloading... {progress.downloaded}/{progress.total}
+          </div>
+          <div style={{ fontSize: 10, color: textDim }}>
+            Be patient — rate-limited to respect NICOclub (3s between downloads)
+          </div>
+        </div>
+      )}
+
+      {crawlStatus === "done" && (
+        <div style={{
+          padding: 12, background: "#0a1a0a", borderRadius: 8,
+          border: "1px solid #1a3a1a", marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 13, color: accent }}>
+            ✓ All {sections.length} sections downloaded and indexed
+          </div>
+          <div style={{ fontSize: 11, color: textSec, marginTop: 4 }}>
+            FSM is now searchable across all projects for this vehicle
+          </div>
+        </div>
+      )}
+
+      {/* Section List */}
+      {sections.length > 0 && (
+        <div style={{
+          padding: 12, background: surface, borderRadius: 8,
+          border: `1px solid ${border}`, marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 10, color: textSec, letterSpacing: 2, marginBottom: 10 }}>
+            SECTIONS ({sections.length})
+          </div>
+          {sections.map((s, i) => (
+            <div key={s.code} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "7px 0",
+              borderBottom: i < sections.length - 1 ? `1px solid ${border}` : "none",
+            }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1, minWidth: 0 }}>
+                <span style={{
+                  fontSize: 11, color: s.status === "downloaded" ? accent : textDim,
+                  width: 14, textAlign: "center",
+                }}>
+                  {s.status === "downloaded" ? "✓" : "○"}
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: s.status === "downloaded" ? textPri : textSec }}>
+                    {s.name}
+                  </div>
+                  <div style={{ fontSize: 9, color: textDim }}>{s.code}</div>
+                </div>
+              </div>
+              {s.status === "downloaded" ? (
+                <button style={css.btnSmall(accent)}>View</button>
+              ) : (
+                <span style={{ fontSize: 10, color: textDim }}>pending</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search within FSM */}
+      {crawlStatus === "done" && (
+        <div style={{
+          padding: 12, background: "#080a14", borderRadius: 8,
+          border: "1px solid #1a1a3e", marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 10, color: "#6a6a9a", letterSpacing: 2, marginBottom: 8 }}>SEARCH FSM</div>
+          <input
+            placeholder="e.g., blower motor transistor location..."
+            style={{ ...css.input, fontSize: 12, background: "#06060e", border: "1px solid #1a1a3e" }}
+          />
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            {["blower transistor", "tie rod torque spec", "fuse layout", "wiring diagram HVAC"].map(q => (
+              <button key={q} style={{ ...css.btnSmall("#6a6a9a"), fontSize: 10, padding: "4px 8px" }}>{q}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1325,6 +1601,13 @@ export default function GarageBrain() {
             onBack={() => setView("garage")}
             onSelectProject={handleSelectProject}
             onNewProject={() => setView("newproject")}
+            onOpenFsmLibrary={() => setView("fsm-library")}
+          />
+        )}
+        {view === "fsm-library" && selectedVehicle && (
+          <FSMLibraryView
+            vehicle={selectedVehicle}
+            onBack={() => setView("vehicle")}
           />
         )}
         {view === "project" && selectedVehicle && selectedProject && (
