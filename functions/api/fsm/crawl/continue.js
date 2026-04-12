@@ -39,6 +39,12 @@ export async function onRequestPost(context) {
     return Response.json({ message: 'No pending sections', ...jobData });
   }
 
+  // Mark this batch as in_progress to prevent duplicate processing
+  for (const i of pendingIdxs) {
+    jobData.sections[i].status = 'in_progress';
+  }
+  await env.CACHE.put(`job:${jobId}`, JSON.stringify(jobData), { expirationTtl: 86400 });
+
   // Process this batch
   for (let idx = 0; idx < pendingIdxs.length; idx++) {
     const i = pendingIdxs[idx];
@@ -100,7 +106,8 @@ export async function onRequestPost(context) {
 
   // Check if all done
   const remaining = jobData.sections.filter(s => s.status === 'pending').length;
-  if (remaining === 0) {
+  const inProgress = jobData.sections.filter(s => s.status === 'in_progress').length;
+  if (remaining === 0 && inProgress === 0) {
     jobData.status = jobData.failed === 0 ? 'complete' : 'partial';
     jobData.completedAt = new Date().toISOString();
   }

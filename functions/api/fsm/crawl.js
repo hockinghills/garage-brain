@@ -151,15 +151,15 @@ export async function onRequestPost(context) {
         { expirationTtl: 86400 } // 24h TTL
       );
 
-      // Kick off first batch — client polls GET and triggers /continue for more
-      // Each request processes up to BATCH_SIZE sections to stay within CPU limits
-      context.waitUntil(downloadBatch(env, jobId, 0));
+      // Job created — frontend polls GET for status and calls
+      // POST /api/fsm/crawl/continue?job_id=XXX to process batches.
+      // No waitUntil — single-writer model avoids KV race conditions.
 
       return Response.json({
         jobId,
-        message: `Found ${sections.length} known sections for ${model} ${year}. Downloading in batches...`,
+        message: `Found ${sections.length} known sections for ${model} ${year}. Call /continue to start downloading.`,
         sections: sections.map((s) => ({ code: s.code, name: s.name })),
-        hint: "Poll GET /api/fsm/crawl?job_id=XXX for status. POST /api/fsm/crawl/continue?job_id=XXX to process next batch.",
+        hint: "POST /api/fsm/crawl/continue?job_id=XXX to download next batch. Poll GET for status.",
       });
     }
 
@@ -175,106 +175,9 @@ export async function onRequestPost(context) {
   }
 }
 
-// Batch size — process this many sections per request to stay within CPU limits
-// At 3s delay between downloads, 5 sections = ~15s which is well within the 5min paid limit
-const BATCH_SIZE = 5;
-
-// Download a batch of sections starting at the given index
-async function downloadBatch(env, jobId, startIdx) {
-  const jobData = await env.CACHE.get(`job:${jobId}`, { type: "json" });
-  if (!jobData) return;
-
-  jobData.status = "downloading";
-  const endIdx = Math.min(startIdx + BATCH_SIZE, jobData.sections.length);
-
-  for (let i = startIdx; i < endIdx; i++) {
-    const section = jobData.sections[i];
-
-    try {
-      // Download the PDF
-      const response = await fetch(section.url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (compatible; GarageBrain/1.0; personal use)",
-          Referer: "https://www.nicoclub.com/nissan-service-manuals",
-        },
-      });
-
-      if (!response.ok) {
-        section.status = "failed";
-        section.error = `HTTP ${response.status}`;
-        jobData.failed++;
-      } else {
-        const contentType = response.headers.get("content-type") || "";
-        if (!contentType.includes("pdf") && !contentType.includes("octet-stream")) {
-          // Might have gotten an HTML error page instead of a PDF
-          section.status = "failed";
-          section.error = `Not a PDF (got ${contentType})`;
-          jobData.failed++;
-        } else {
-          // Store in R2
-          const r2Key = `fsm/${jobData.vehicle_id}/${jobData.year}/${section.code}.pdf`;
-          await env.STORAGE.put(r2Key, response.body, {
-            customMetadata: {
-              vehicleId: jobData.vehicle_id,
-              model: jobData.model,
-              year: String(jobData.year),
-              sectionCode: section.code,
-              sectionName: section.name,
-              source: jobData.source,
-              downloadedAt: new Date().toISOString(),
-            },
-          });
-
-          // Record in D1
-          await env.DB.prepare(
-            `INSERT OR REPLACE INTO fsm_sections (vehicle_id, title, r2_key)
-             VALUES (?, ?, ?)`
-          )
-            .bind(jobData.vehicle_id, `${section.code} — ${section.name}`, r2Key)
-            .run();
-
-          section.status = "done";
-          section.r2Key = r2Key;
-          jobData.downloaded++;
-        }
-      }
-    } catch (e) {
-      section.status = "failed";
-      section.error = e.message;
-      jobData.failed++;
-    }
-
-    // Update job status
-    await env.CACHE.put(`job:${jobId}`, JSON.stringify(jobData), {
-      expirationTtl: 86400,
-    });
-
-    // Rate limit — wait between downloads to be respectful
-    if (i < endIdx - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-  }
-
-  // Check if there are more sections to process
-  const allDone = jobData.sections.every(s => s.status !== "pending");
-  if (allDone) {
-    jobData.status =
-      jobData.failed === 0
-        ? "complete"
-        : jobData.downloaded > 0
-          ? "partial"
-          : "failed";
-    jobData.completedAt = new Date().toISOString();
-  } else {
-    jobData.status = "downloading";
-    jobData.nextBatchStart = endIdx;
-  }
-
-  await env.CACHE.put(`job:${jobId}`, JSON.stringify(jobData), {
-    expirationTtl: 86400,
-  });
-}
+// All download work is now done via /api/fsm/crawl/continue.js
+// Single-writer model: no background processing, no race conditions.
+// Frontend calls /continue repeatedly to process batches.
 
 // GET — check crawl job status
 export async function onRequestGet(context) {
