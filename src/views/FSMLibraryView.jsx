@@ -33,10 +33,19 @@ export default function FSMLibraryView({ vehicle, onBack }) {
 
   // Load existing sections from D1 on mount
   useEffect(() => {
+    // Reset crawl state when vehicle changes
+    setJobId(null);
+    setJobData(null);
+    setCrawlError(null);
+    setStarting(false);
+    setContinuing(false);
+    setSelectedSource(guessSource(vehicle) || "custom_url");
+    if (pollingRef.current) clearTimeout(pollingRef.current);
+
     fetch(`/api/fsm/sections?vehicle_id=${encodeURIComponent(vehicle.id)}`)
       .then(r => r.ok ? r.json() : { sections: [] })
       .then(d => setExistingSections(d.sections || []))
-      .catch(() => {});
+      .catch(() => setExistingSections([]));
   }, [vehicle.id]);
 
   // Poll job status
@@ -58,7 +67,7 @@ export default function FSMLibraryView({ vehicle, onBack }) {
       const result = await api.continueFSMCrawl(id);
       // Fetch fresh status after processing
       const fresh = await pollStatus(id);
-      if (fresh && fresh.status !== "complete" && fresh.status !== "partial") {
+      if (fresh && !["complete", "partial", "blocked", "has_blocked"].includes(fresh.status) && !crawlError) {
         // More work to do — wait 2s then process next batch
         pollingRef.current = setTimeout(() => processNextBatch(id), 2000);
       }
@@ -71,7 +80,7 @@ export default function FSMLibraryView({ vehicle, onBack }) {
       }
     }
     setContinuing(false);
-  }, [pollStatus]);
+  }, [pollStatus, crawlError]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -196,7 +205,7 @@ export default function FSMLibraryView({ vehicle, onBack }) {
             <input value={customUrl} onChange={e => setCustomUrl(e.target.value)}
               placeholder="Paste FSM page URL or direct PDF link..."
               style={{ ...css.input, flex: 1, fontSize: 12 }} />
-            <button style={css.btnSmall("#818cf8")}>Scan</button>
+            <button disabled style={css.btnSmallPlaceholder("#818cf8")}>Scan</button>
           </div>
           <div style={{ fontSize: 10, color: textDim, marginTop: 6, lineHeight: 1.5 }}>
             Paste a page with PDF links and we'll find them all, or drop in a direct PDF link.
@@ -372,18 +381,21 @@ export default function FSMLibraryView({ vehicle, onBack }) {
         </div>
       )}
 
-      {/* Search — when we have sections */}
+      {/* Search — when we have sections (planned — requires AI indexing) */}
       {(isDone || hasBlocked || existingSections.length > 0) && (
         <div style={{
           padding: 12, background: "#080a14", borderRadius: 8,
-          border: "1px solid #1a1a3e", marginBottom: 20,
+          border: "1px dashed #1a1a3e", marginBottom: 20, opacity: 0.5,
         }}>
-          <div style={{ fontSize: 10, color: "#6a6a9a", letterSpacing: 2, marginBottom: 8 }}>SEARCH FSM</div>
-          <input placeholder="e.g., blower motor transistor location..."
-            style={{ ...css.input, fontSize: 12, background: "#06060e", border: "1px solid #1a1a3e" }} />
+          <div style={{ fontSize: 10, color: "#6a6a9a", letterSpacing: 2, marginBottom: 8 }}>SEARCH FSM — PLANNED</div>
+          <input disabled placeholder="Requires AI indexing — coming soon"
+            style={{ ...css.input, fontSize: 12, background: "#06060e", border: "1px dashed #1a1a3e", cursor: "default" }} />
           <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
             {["blower transistor", "tie rod torque spec", "fuse layout", "wiring diagram HVAC"].map(q => (
-              <button key={q} style={{ ...css.btnSmall("#6a6a9a"), fontSize: 10, padding: "4px 8px" }}>{q}</button>
+              <span key={q} style={{
+                fontSize: 10, padding: "4px 8px", color: "#6a6a9a",
+                border: `1px dashed #6a6a9a40`, borderRadius: 6, opacity: 0.6,
+              }}>{q}</span>
             ))}
           </div>
         </div>

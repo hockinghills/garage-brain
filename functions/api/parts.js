@@ -32,9 +32,9 @@ export async function onRequestPost(context) {
     const result = await env.DB.prepare(
       'INSERT INTO parts (project_id, name, part_number, status, cost, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ).bind(
-      body.project_id, body.name, body.part_number || null,
-      body.status || 'need', body.cost || null,
-      body.source || null, body.notes || null
+      body.project_id, body.name, body.part_number ?? null,
+      body.status || 'need', body.cost ?? null,
+      body.source ?? null, body.notes ?? null
     ).run();
 
     return Response.json({ id: result.meta.last_row_id, success: true }, { status: 201 });
@@ -55,7 +55,7 @@ export async function onRequestPatch(context) {
     const binds = [];
 
     for (const field of ['name', 'part_number', 'status', 'cost', 'source', 'notes']) {
-      if (body[field] != null) {
+      if (field in body) {
         updates.push(`${field} = ?`);
         binds.push(body[field]);
       }
@@ -66,9 +66,13 @@ export async function onRequestPatch(context) {
     }
 
     binds.push(body.id);
-    await env.DB.prepare(
+    const result = await env.DB.prepare(
       `UPDATE parts SET ${updates.join(', ')} WHERE id = ?`
     ).bind(...binds).run();
+
+    if (result.meta.changes === 0) {
+      return Response.json({ error: 'Part not found' }, { status: 404 });
+    }
 
     return Response.json({ success: true });
   } catch (e) {

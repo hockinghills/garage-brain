@@ -53,11 +53,11 @@ export default function ProjectView({ vehicle, project, onBack, onToggleStep, on
                     padding: "6px 0", borderBottom: i < project.fsmSections.length - 1 ? `1px solid ${border}` : "none",
                   }}>
                     <span style={{ fontSize: 12, color: textSec }}>{label}</span>
-                    <button style={css.btnSmall("#818cf8")}>Load</button>
+                    <button disabled style={css.btnSmallPlaceholder("#818cf8")}>Load</button>
                   </div>
                 );
               })}
-              <button style={{ ...css.btnSmall("#818cf8"), marginTop: 8, width: "100%" }}>
+              <button disabled style={{ ...css.btnSmallPlaceholder("#818cf8"), marginTop: 8, width: "100%" }}>
                 + Add FSM Section
               </button>
             </div>
@@ -66,31 +66,31 @@ export default function ProjectView({ vehicle, project, onBack, onToggleStep, on
       )}
 
       {/* Notes */}
-      {project.notes != null && (
-        <div style={{
-          padding: 12, background: "#0f0f0a", borderRadius: 8,
-          border: `1px solid #2a2a1a`, marginBottom: 12,
-        }}>
-          <div style={{ fontSize: 10, color: "#8a8a4a", letterSpacing: 2, marginBottom: 6 }}>NOTES</div>
+      <div style={{
+        padding: 12, background: "#0f0f0a", borderRadius: 8,
+        border: `1px solid #2a2a1a`, marginBottom: 12,
+      }}>
+        <div style={{ fontSize: 10, color: "#8a8a4a", letterSpacing: 2, marginBottom: 6 }}>NOTES</div>
+        {project.notes && (
           <div style={{ fontSize: 12, color: "#c8c8a0", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{project.notes}</div>
-          <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
-            <input
-              value={newNote}
-              onChange={e => setNewNote(e.target.value)}
-              placeholder="Add a note..."
-              style={{ ...css.input, flex: 1, padding: "6px 10px", fontSize: 11, background: "#0a0a08", border: `1px solid #2a2a1a` }}
-              onKeyDown={e => {
-                if (e.key === "Enter" && newNote.trim()) {
-                  onAddNote(newNote);
-                  setNewNote("");
-                }
-              }}
-            />
-            <button onClick={() => { if (newNote.trim()) { onAddNote(newNote); setNewNote(""); } }}
-              style={css.btnSmall("#8a8a4a")}>+</button>
-          </div>
+        )}
+        <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+          <input
+            value={newNote}
+            onChange={e => setNewNote(e.target.value)}
+            placeholder="Add a note..."
+            style={{ ...css.input, flex: 1, padding: "6px 10px", fontSize: 11, background: "#0a0a08", border: `1px solid #2a2a1a` }}
+            onKeyDown={e => {
+              if (e.key === "Enter" && newNote.trim()) {
+                onAddNote(newNote);
+                setNewNote("");
+              }
+            }}
+          />
+          <button onClick={() => { if (newNote.trim()) { onAddNote(newNote); setNewNote(""); } }}
+            style={css.btnSmall("#8a8a4a")}>+</button>
         </div>
-      )}
+      </div>
 
       {/* Steps */}
       {project.steps?.length > 0 && (
@@ -101,6 +101,8 @@ export default function ProjectView({ vehicle, project, onBack, onToggleStep, on
           <div style={{ fontSize: 10, color: textSec, letterSpacing: 2, marginBottom: 10 }}>PROCEDURE</div>
           {project.steps.map((step, i) => (
             <div key={i} onClick={() => onToggleStep(i)}
+              role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleStep(i); } }}
               style={{
                 display: "flex", gap: 10, padding: "10px 0",
                 borderBottom: i < project.steps.length - 1 ? `1px solid ${border}` : "none",
@@ -201,7 +203,7 @@ export default function ProjectView({ vehicle, project, onBack, onToggleStep, on
               </div>
             );
           })}
-          <button style={{ ...css.btnSmall("#5a9a5a"), marginTop: 10, width: "100%" }}>
+          <button disabled style={{ ...css.btnSmallPlaceholder("#5a9a5a"), marginTop: 10, width: "100%" }}>
             + Add Tool
           </button>
         </div>
@@ -219,41 +221,44 @@ export default function ProjectView({ vehicle, project, onBack, onToggleStep, on
               style={css.btn("#e879f9")}>🔎 Launch Troubleshooting</button>
           )}
           {project.module === "alignment" && (
-            <button style={css.btn()}>◎ Launch Alignment Tool</button>
+            <button disabled style={css.btnPlaceholder()}>◎ Launch Alignment Tool</button>
           )}
           {project.module === "diagnostics" && (
             <>
-              <button style={css.btn("#3b82f6")}>⚡ Connect OBD2</button>
-              <button style={css.btn("#06b6d4")}>📊 View Trouble Codes</button>
+              <button disabled style={css.btnPlaceholder("#3b82f6")}>⚡ Connect OBD2</button>
+              <button disabled style={css.btnPlaceholder("#06b6d4")}>📊 View Trouble Codes</button>
             </>
           )}
           {project.module === "repair" && (
             <>
-              <button style={css.btn("#f59e0b")}>📄 Open FSM Section</button>
-              <button style={css.btn("#06b6d4")}>🔍 Ask AI About This Repair</button>
+              <button disabled style={css.btnPlaceholder("#f59e0b")}>📄 Open FSM Section</button>
+              <button disabled style={css.btnPlaceholder("#06b6d4")}>🔍 Ask AI About This Repair</button>
             </>
           )}
         </div>
       </div>
 
-      {/* AI Assistant */}
+      {/* AI Assistant — planned */}
       <div style={{
         padding: 12, background: "#0a0a14", borderRadius: 8,
-        border: `1px solid #1a1a2e`, marginBottom: 20,
+        border: `1px dashed #1a1a2e`, marginBottom: 20, opacity: 0.5,
       }}>
-        <div style={{ fontSize: 10, color: "#6a6a9a", letterSpacing: 2, marginBottom: 8 }}>AI ASSISTANT</div>
+        <div style={{ fontSize: 10, color: "#6a6a9a", letterSpacing: 2, marginBottom: 8 }}>AI ASSISTANT — PLANNED</div>
         <div style={{ fontSize: 12, color: "#8a8acc", marginBottom: 10, lineHeight: 1.5 }}>
-          Ask anything about this repair. The AI has context of your vehicle, project, and loaded FSM sections.
+          Ask anything about this repair. The AI will have context of your vehicle, project, and loaded FSM sections.
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <input placeholder={`Ask about ${project.title.toLowerCase()}...`}
-            style={{ ...css.input, flex: 1, fontSize: 12, background: "#08080e", border: `1px solid #1a1a2e` }}
+          <input disabled placeholder={`Ask about ${project.title.toLowerCase()}...`}
+            style={{ ...css.input, flex: 1, fontSize: 12, background: "#08080e", border: `1px dashed #1a1a2e`, cursor: "default" }}
           />
-          <button style={css.btnSmall("#818cf8")}>→</button>
+          <button disabled style={css.btnSmallPlaceholder("#818cf8")}>→</button>
         </div>
         <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
           {["Torque specs?", "Common mistakes?", "What tool do I need?"].map(q => (
-            <button key={q} style={{ ...css.btnSmall("#6a6a9a"), fontSize: 10, padding: "4px 8px" }}>{q}</button>
+            <span key={q} style={{
+              fontSize: 10, padding: "4px 8px", color: "#6a6a9a",
+              border: `1px dashed #6a6a9a40`, borderRadius: 6, opacity: 0.6,
+            }}>{q}</span>
           ))}
         </div>
       </div>

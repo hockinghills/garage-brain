@@ -80,7 +80,7 @@ export async function onRequestPost(context) {
     if (hitRateLimit) {
       section.status = 'blocked';
       section.error = 'Rate limited — will retry in next batch';
-      section.retryCount = (section.retryCount || 0);
+      section.retryCount = (section.retryCount || 0) + 1;
       continue;
     }
 

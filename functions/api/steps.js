@@ -29,13 +29,15 @@ export async function onRequestPost(context) {
       return Response.json({ error: 'project_id and text required' }, { status: 400 });
     }
 
-    // Auto-assign sort_order if not provided
+    // Auto-assign sort_order atomically if not provided
     let sortOrder = body.sort_order;
     if (sortOrder == null) {
-      const { results } = await env.DB.prepare(
-        'SELECT MAX(sort_order) as max_order FROM steps WHERE project_id = ?'
-      ).bind(body.project_id).all();
-      sortOrder = (results[0]?.max_order ?? -1) + 1;
+      const result = await env.DB.prepare(
+        `INSERT INTO steps (project_id, sort_order, text, done, notes)
+         VALUES (?, COALESCE((SELECT MAX(sort_order) FROM steps WHERE project_id = ?), -1) + 1, ?, 0, ?)`
+      ).bind(body.project_id, body.project_id, body.text, body.notes || null).run();
+
+      return Response.json({ id: result.meta.last_row_id, success: true }, { status: 201 });
     }
 
     const result = await env.DB.prepare(

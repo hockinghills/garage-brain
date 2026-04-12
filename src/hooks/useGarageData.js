@@ -69,7 +69,7 @@ export default function useGarageData() {
           for (const apiVehicle of vList) {
             const existing = merged.find(v =>
               v.id === apiVehicle.id ||
-              (v.year === apiVehicle.year && v.make === apiVehicle.make)
+              (v.year === apiVehicle.year && v.make === apiVehicle.make && v.model === apiVehicle.model)
             );
             if (!existing) {
               // New vehicle from D1 we don't have locally — add it
@@ -80,6 +80,7 @@ export default function useGarageData() {
           saveToStorage(merged);
           return merged;
         });
+        setUsingLocal(false);
       }
     } catch {
       // API unavailable — that's fine, we have local data
@@ -93,7 +94,7 @@ export default function useGarageData() {
   // --- Mutations (all persist to localStorage automatically via setVehicles) ---
 
   const addVehicle = useCallback(async (vehicleData) => {
-    const id = `${vehicleData.make}-${vehicleData.model}-${vehicleData.year}`
+    const id = `${vehicleData.make}-${vehicleData.model}-${vehicleData.year}-${Date.now()}`
       .toLowerCase().replace(/\s+/g, '-');
     const newVehicle = { id, ...vehicleData, projects: [] };
     setVehicles(prev => [...prev, newVehicle]);
@@ -118,6 +119,18 @@ export default function useGarageData() {
     setVehicles(prev => prev.map(v =>
       v.id === vehicleId ? { ...v, projects: [...(v.projects || []), newProject] } : v
     ));
+
+    // Persist to D1
+    try {
+      await api.createProject({
+        vehicle_id: vehicleId,
+        title: projectData.title,
+        module: projectData.module,
+        status: projectData.status || 'planned',
+        notes: projectData.notes,
+      });
+    } catch { /* local is fine */ }
+
     return newProject;
   }, [setVehicles]);
 
@@ -128,6 +141,7 @@ export default function useGarageData() {
         ...v,
         projects: (v.projects || []).map(p => {
           if (p.id !== projectId) return p;
+          if (stepIdx < 0 || stepIdx >= (p.steps || []).length) return p;
           const newSteps = [...p.steps];
           newSteps[stepIdx] = { ...newSteps[stepIdx], done: !newSteps[stepIdx].done };
           return { ...p, steps: newSteps, updated_at: new Date().toISOString().split("T")[0] };
@@ -148,6 +162,9 @@ export default function useGarageData() {
         }),
       };
     }));
+
+    // Persist to journal
+    try { api.addJournalEntry(projectId, note); } catch { /* local is fine */ }
   }, [setVehicles]);
 
   const updateProjectStatus = useCallback((vehicleId, projectId, status) => {
@@ -160,6 +177,9 @@ export default function useGarageData() {
         ),
       };
     }));
+
+    // Persist to D1
+    try { api.updateProject(projectId, { status }); } catch { /* local is fine */ }
   }, [setVehicles]);
 
   // Save troubleshooting state back into the project

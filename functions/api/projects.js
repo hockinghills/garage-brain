@@ -106,9 +106,13 @@ export async function onRequestPatch(context) {
     updates.push('updated_at = CURRENT_TIMESTAMP');
     binds.push(body.id);
 
-    await env.DB.prepare(
+    const result = await env.DB.prepare(
       `UPDATE projects SET ${updates.join(', ')} WHERE id = ?`
     ).bind(...binds).run();
+
+    if (result.meta.changes === 0) {
+      return Response.json({ error: 'Project not found' }, { status: 404 });
+    }
 
     return Response.json({ success: true });
   } catch (e) {

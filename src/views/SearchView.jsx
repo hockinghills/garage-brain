@@ -1,4 +1,4 @@
-import { css, textSec, border, font } from "../styles.js";
+import { css, textSec, textDim, border, font } from "../styles.js";
 
 const SUGGESTIONS = [
   "47RE torque specs",
@@ -13,19 +13,22 @@ export default function SearchView() {
     <div style={css.section}>
       <div style={{ padding: "20px 0" }}>
         <div style={{ fontSize: 11, color: textSec, letterSpacing: 2, marginBottom: 12 }}>SEARCH EVERYTHING</div>
-        <input placeholder="Search vehicles, projects, FSM, parts..."
-          style={{ ...css.input, fontSize: 14, padding: "14px 16px" }} />
+        <input disabled placeholder="Search — requires AI indexing (planned)"
+          style={{ ...css.input, fontSize: 14, padding: "14px 16px", opacity: 0.5, cursor: "default" }} />
         <div style={{ marginTop: 16 }}>
           {SUGGESTIONS.map(q => (
-            <button key={q} style={{
+            <div key={q} style={{
               display: "block", width: "100%", textAlign: "left",
-              background: "none", border: "none", borderBottom: `1px solid ${border}`,
-              color: textSec, fontSize: 12, fontFamily: font,
-              padding: "10px 0", cursor: "pointer",
+              background: "none", borderBottom: `1px dashed ${border}`,
+              color: textDim, fontSize: 12, fontFamily: font,
+              padding: "10px 0", opacity: 0.5,
             }}>
               🔍 {q}
-            </button>
+            </div>
           ))}
+          <div style={{ fontSize: 10, color: textDim, marginTop: 12, fontStyle: "italic" }}>
+            Search requires FSM ingestion + AI indexing — coming soon
+          </div>
         </div>
       </div>
     </div>

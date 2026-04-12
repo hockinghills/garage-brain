@@ -10,9 +10,13 @@ const STATUS_COLORS = {
 export default function StatusDot({ status }) {
   const c = STATUS_COLORS[status] || textDim;
   return (
-    <span style={{
-      display: "inline-block", width: 8, height: 8, borderRadius: "50%",
-      background: c, boxShadow: `0 0 6px ${c}60`, marginRight: 6,
-    }} />
+    <span
+      role="status"
+      aria-label={status || "unknown"}
+      style={{
+        display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+        background: c, boxShadow: `0 0 6px ${c}60`, marginRight: 6,
+      }}
+    />
   );
 }

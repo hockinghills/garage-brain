@@ -23,8 +23,8 @@ export default function VehicleView({ vehicle, onBack, onSelectProject, onNewPro
         <div style={{ ...css.divider }} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => onOpenFsmLibrary && onOpenFsmLibrary()} style={css.btnSmall("#818cf8")}>📄 FSM Library</button>
-          <button style={css.btnSmall("#06b6d4")}>📊 OBD2 Connect</button>
-          <button style={css.btnSmall("#f59e0b")}>🕐 History</button>
+          <button disabled style={css.btnSmallPlaceholder("#06b6d4")} title="Planned">📊 OBD2 Connect</button>
+          <button disabled style={css.btnSmallPlaceholder("#f59e0b")} title="Planned">🕐 History</button>
         </div>
       </div>
 

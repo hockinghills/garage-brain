@@ -15,6 +15,7 @@ export async function onRequestGet(context) {
     ).bind(vehicleId).all();
     return Response.json({ sections: results });
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    console.error('FSM sections error:', e.message);
+    return Response.json({ error: 'Failed to fetch FSM sections' }, { status: 500 });
   }
 }

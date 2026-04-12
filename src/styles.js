@@ -33,6 +33,18 @@ export const css = {
     borderRadius: 6, padding: "6px 12px", fontSize: 11, fontWeight: 600,
     fontFamily: font, cursor: "pointer", letterSpacing: 0.5,
   }),
+  btnPlaceholder: (color = textDim) => ({
+    background: "transparent", color: `${color}80`, border: `1px dashed ${color}40`,
+    borderRadius: 8, padding: "12px 20px", fontSize: 13, fontWeight: 700,
+    fontFamily: font, cursor: "default", width: "100%", letterSpacing: 0.5,
+    opacity: 0.5,
+  }),
+  btnSmallPlaceholder: (color = textDim) => ({
+    background: "transparent", color: `${color}80`, border: `1px dashed ${color}40`,
+    borderRadius: 6, padding: "6px 12px", fontSize: 11, fontWeight: 600,
+    fontFamily: font, cursor: "default", letterSpacing: 0.5,
+    opacity: 0.5,
+  }),
   tag: (color) => ({
     display: "inline-block", padding: "2px 8px", borderRadius: 4,
     background: `${color}15`, border: `1px solid ${color}30`,

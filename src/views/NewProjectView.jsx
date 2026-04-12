@@ -44,11 +44,14 @@ export default function NewProjectView({ vehicle, onBack, onCreate }) {
           rows={4}
           style={{ ...css.input, resize: "vertical" }} />
       </div>
-      <button onClick={() => {
-        if (title.trim()) {
-          onCreate({ title, module, notes, status: "active" });
-        }
-      }} style={css.btn()}>
+      <button
+        disabled={!title.trim()}
+        onClick={() => {
+          if (title.trim()) {
+            onCreate({ title: title.trim(), module, notes: notes.trim(), status: "active" });
+          }
+        }}
+        style={{ ...css.btn(), opacity: title.trim() ? 1 : 0.4, cursor: title.trim() ? "pointer" : "default" }}>
         CREATE PROJECT
       </button>
     </div>

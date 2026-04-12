@@ -19,6 +19,8 @@ export default function GarageView({ vehicles, onSelectVehicle, onReset }) {
         const active = (v.projects || []).filter(p => p.status === "active");
         return (
           <div key={v.id} onClick={() => onSelectVehicle(v)}
+            role="button" tabIndex={0}
+            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectVehicle(v); } }}
             style={{ ...css.card, borderLeft: `3px solid ${v.color}` }}
             onMouseEnter={e => e.currentTarget.style.borderColor = v.color}
             onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.borderLeftColor = v.color; }}

@@ -13,6 +13,8 @@ export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
     return firstUntested === -1 ? steps.length - 1 : firstUntested;
   });
   const [measureValue, setMeasureValue] = useState("");
+  const [noteValue, setNoteValue] = useState("");
+  const noteRef = useRef("");
   const isFirstRender = useRef(true);
 
   // Persist troubleshooting results whenever steps change
@@ -33,14 +35,17 @@ export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
   const resultIcon = (r) => r === "pass" ? "✓" : r === "fail" ? "✗" : r === "skipped" ? "→" : "○";
 
   const recordResult = (result, note = "", { autoAdvance = true } = {}) => {
+    const currentNote = note || noteRef.current || "";
     const updated = [...steps];
     updated[activeIdx] = {
       ...updated[activeIdx],
       result,
       testedAt: new Date().toLocaleString(),
-      note: note || updated[activeIdx].note,
+      note: currentNote || updated[activeIdx].note,
     };
     setSteps(updated);
+    setNoteValue("");
+    noteRef.current = "";
 
     if (autoAdvance) {
       const nextUntested = updated.findIndex((s, i) => i > activeIdx && s.result === null);
@@ -249,13 +254,8 @@ export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
               )}
 
               <input placeholder="Add a note about this test..."
-                onBlur={e => {
-                  if (e.target.value) {
-                    const updated = [...steps];
-                    updated[activeIdx] = { ...updated[activeIdx], note: e.target.value };
-                    setSteps(updated);
-                  }
-                }}
+                value={noteValue}
+                onChange={e => { setNoteValue(e.target.value); noteRef.current = e.target.value; }}
                 style={{ ...css.input, marginTop: 8, fontSize: 11, padding: "8px 10px", background: "#0e0618", border: "1px solid #2a1a3a" }}
               />
             </div>
