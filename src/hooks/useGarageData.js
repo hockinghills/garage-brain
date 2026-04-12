@@ -24,15 +24,33 @@ export default function useGarageData() {
         return;
       }
 
-      // Enrich each vehicle with its projects
+      // Enrich each vehicle with its projects from D1
       const enriched = await Promise.all(
         vList.map(async (v) => {
+          let projects = [];
           try {
-            const projects = await api.fetchProjects(v.id);
-            return { ...v, projects };
+            projects = await api.fetchProjects(v.id);
           } catch {
-            return { ...v, projects: [] };
+            // API failed for this vehicle
           }
+
+          // If D1 has no projects for this vehicle, merge in seed data.
+          // This preserves the pre-built troubleshooting trees, repair guides,
+          // parts/tools lists — the core data that makes the app useful.
+          // Match by year + make since D1 IDs differ from seed IDs.
+          if (projects.length === 0) {
+            const seedVehicle = SEED_VEHICLES.find(
+              sv => sv.year === v.year && sv.make === v.make
+            );
+            if (seedVehicle?.projects) {
+              projects = seedVehicle.projects.map(p => ({
+                ...p,
+                vehicle_id: v.id,  // Remap to D1 vehicle ID
+              }));
+            }
+          }
+
+          return { ...v, projects };
         })
       );
 
