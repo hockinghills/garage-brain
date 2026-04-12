@@ -323,7 +323,10 @@ export default function FSMLibraryView({ vehicle, onBack }) {
                   </div>
                 </div>
                 {s.status === "done" && (
-                  <button style={css.btnSmall(accent)}>View</button>
+                  <button onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/api/fsm/view?key=${encodeURIComponent(s.r2Key)}`, '_blank');
+                  }} style={css.btnSmall(accent)}>View</button>
                 )}
                 {s.status === "failed" && (
                   <span style={{ fontSize: 10, color: "#f87171" }}>failed</span>
@@ -361,7 +364,9 @@ export default function FSMLibraryView({ vehicle, onBack }) {
                 <span style={{ fontSize: 11, color: accent }}>✓</span>
                 <span style={{ fontSize: 12, color: textPri }}>{s.title}</span>
               </div>
-              <button style={css.btnSmall(accent)}>View</button>
+              <button onClick={() => {
+                window.open(`/api/fsm/view?key=${encodeURIComponent(s.r2_key)}`, '_blank');
+              }} style={css.btnSmall(accent)}>View</button>
             </div>
           ))}
         </div>

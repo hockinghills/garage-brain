@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import BackButton from "../components/BackButton.jsx";
+import FSMRefLink from "../components/FSMRefLink.jsx";
 import { css, border, textSec, textDim, textPri, accent, font } from "../styles.js";
 
 export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
@@ -148,7 +149,10 @@ export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
                   </div>
                 )}
                 {step.fsmRef && (
-                  <div style={{ fontSize: 9, color: "#6a6a9a", marginTop: 2 }}>FSM: {step.fsmRef}</div>
+                  <div style={{ fontSize: 9, color: "#6a6a9a", marginTop: 2 }}>
+                    <FSMRefLink fsmRef={step.fsmRef} vehicleId={vehicle.id}
+                      style={{ fontSize: 9, padding: "2px 6px" }} />
+                  </div>
                 )}
               </div>
             </div>
@@ -167,7 +171,7 @@ export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
               STEP {activeIdx + 1} OF {steps.length}
             </div>
             {activeStep.fsmRef && (
-              <button style={css.btnSmall("#818cf8")}>📄 {activeStep.fsmRef}</button>
+              <FSMRefLink fsmRef={activeStep.fsmRef} vehicleId={vehicle.id} />
             )}
           </div>
 
