@@ -842,7 +842,7 @@ function TroubleshootView({ vehicle, project, onBack, onUpdateTroubleshooting })
   const activeStep = steps[activeIdx];
   const testedCount = steps.filter(s => s.result !== null).length;
 
-  const recordResult = (result, note = "") => {
+  const recordResult = (result, note = "", { autoAdvance = true } = {}) => {
     const updated = [...steps];
     updated[activeIdx] = {
       ...updated[activeIdx],
@@ -852,10 +852,12 @@ function TroubleshootView({ vehicle, project, onBack, onUpdateTroubleshooting })
     };
     setSteps(updated);
 
-    // Auto-advance to next untested step
-    const nextUntested = updated.findIndex((s, i) => i > activeIdx && s.result === null);
-    if (nextUntested !== -1) {
-      setTimeout(() => setActiveIdx(nextUntested), 300);
+    // Only auto-advance for non-branching steps
+    if (autoAdvance) {
+      const nextUntested = updated.findIndex((s, i) => i > activeIdx && s.result === null);
+      if (nextUntested !== -1) {
+        setTimeout(() => setActiveIdx(nextUntested), 300);
+      }
     }
   };
 
@@ -1034,7 +1036,7 @@ function TroubleshootView({ vehicle, project, onBack, onUpdateTroubleshooting })
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {activeStep.choices.map((ch, i) => (
                     <button key={i} onClick={() => {
-                      recordResult(ch.label);
+                      recordResult(ch.label, "", { autoAdvance: !ch.next });
                       if (ch.next) jumpToStep(ch.next);
                     }} style={{ ...css.btn(ch.color || "#818cf8"), padding: "14px 16px", textAlign: "left" }}>
                       {ch.label}
@@ -1061,10 +1063,14 @@ function TroubleshootView({ vehicle, project, onBack, onUpdateTroubleshooting })
                   )}
                   <button onClick={() => {
                     const val = parseFloat(measureValue);
-                    const inSpec = val >= (activeStep.specMin || -Infinity) && val <= (activeStep.specMax || Infinity);
-                    recordResult(inSpec ? "pass" : "fail", `${measureValue} ${activeStep.unit}`);
+                    if (measureValue.trim() === "" || Number.isNaN(val)) return;
+                    const inSpec = val >= (activeStep.specMin ?? -Infinity) && val <= (activeStep.specMax ?? Infinity);
+                    recordResult(inSpec ? "pass" : "fail", `${val} ${activeStep.unit}`);
                     setMeasureValue("");
-                  }} style={css.btn("#e879f9")}>
+                  }} disabled={measureValue.trim() === ""} style={{
+                    ...css.btn("#e879f9"),
+                    opacity: measureValue.trim() === "" ? 0.4 : 1,
+                  }}>
                     RECORD READING
                   </button>
                 </div>
