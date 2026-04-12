@@ -81,7 +81,7 @@ export default function GarageBrain() {
     // Tab views (when at garage level)
     if (view === "garage" && tab === "modules") return <ModulesView />;
     if (view === "garage" && tab === "search") return <SearchView />;
-    if (view === "garage") return <GarageView vehicles={vehicles} onSelectVehicle={goVehicle} />;
+    if (view === "garage") return <GarageView vehicles={vehicles} onSelectVehicle={goVehicle} onReset={data.resetData} />;
 
     // Vehicle level
     if (view === "vehicle" && selectedVehicle) {

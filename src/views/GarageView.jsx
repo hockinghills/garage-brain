@@ -1,7 +1,9 @@
+import { useState } from "react";
 import StatusDot from "../components/StatusDot.jsx";
-import { css, textSec, textDim, border } from "../styles.js";
+import { css, textSec, textDim, border, font } from "../styles.js";
 
-export default function GarageView({ vehicles, onSelectVehicle }) {
+export default function GarageView({ vehicles, onSelectVehicle, onReset }) {
+  const [confirmReset, setConfirmReset] = useState(false);
   const activeProjects = vehicles.reduce(
     (n, v) => n + (v.projects || []).filter(p => p.status === "active").length, 0
   );
@@ -57,6 +59,32 @@ export default function GarageView({ vehicles, onSelectVehicle }) {
           </div>
         );
       })}
+      {onReset && (
+        <div style={{ marginTop: 20, padding: "12px 0", borderTop: `1px solid ${border}` }}>
+          {!confirmReset ? (
+            <button onClick={() => setConfirmReset(true)} style={{
+              background: "none", border: "none", color: textDim,
+              fontSize: 10, fontFamily: font, cursor: "pointer",
+              padding: "8px 0", width: "100%", textAlign: "center",
+              letterSpacing: 1,
+            }}>
+              RESET ALL DATA
+            </button>
+          ) : (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: "#f87171", marginBottom: 8 }}>
+                This will wipe all your progress. Are you sure?
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button onClick={() => { onReset(); setConfirmReset(false); }}
+                  style={{ ...css.btnSmall("#f87171"), padding: "8px 20px" }}>Yes, reset</button>
+                <button onClick={() => setConfirmReset(false)}
+                  style={{ ...css.btnSmall(textDim), padding: "8px 20px" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
