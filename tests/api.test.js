@@ -353,21 +353,35 @@ describe('FSM Crawler', async () => {
 describe('Auth Middleware', async () => {
   const { onRequest } = await import('../functions/api/_middleware.js');
 
+  const TEST_URL = 'https://garage-brain.pages.dev/api/test';
+
   it('allows GET requests without auth', async () => {
     let nextCalled = false;
     const ctx = {
       env: { API_SECRET: 'test-secret' },
-      request: { method: 'GET', headers: new Map() },
+      request: { method: 'GET', url: TEST_URL, headers: new Map() },
       next: async () => { nextCalled = true; return new Response('ok'); },
     };
     await onRequest(ctx);
     expect(nextCalled).toBe(true);
   });
 
-  it('blocks POST without token', async () => {
+  it('blocks POST without token from external origin', async () => {
+    const headers = new Map();
+    headers.set('Origin', 'https://evil-site.com');
     const ctx = {
       env: { API_SECRET: 'test-secret' },
-      request: { method: 'POST', headers: new Map() },
+      request: { method: 'POST', url: TEST_URL, headers },
+      next: async () => new Response('ok'),
+    };
+    const res = await onRequest(ctx);
+    expect(res.status).toBe(401);
+  });
+
+  it('blocks POST with no origin and no token', async () => {
+    const ctx = {
+      env: { API_SECRET: 'test-secret' },
+      request: { method: 'POST', url: TEST_URL, headers: new Map() },
       next: async () => new Response('ok'),
     };
     const res = await onRequest(ctx);
@@ -379,7 +393,7 @@ describe('Auth Middleware', async () => {
     headers.set('Authorization', 'Bearer wrong-token');
     const ctx = {
       env: { API_SECRET: 'test-secret' },
-      request: { method: 'POST', headers },
+      request: { method: 'POST', url: TEST_URL, headers },
       next: async () => new Response('ok'),
     };
     const res = await onRequest(ctx);
@@ -392,7 +406,7 @@ describe('Auth Middleware', async () => {
     headers.set('Authorization', 'Bearer test-secret');
     const ctx = {
       env: { API_SECRET: 'test-secret' },
-      request: { method: 'POST', headers },
+      request: { method: 'POST', url: TEST_URL, headers },
       next: async () => { nextCalled = true; return new Response('ok'); },
     };
     await onRequest(ctx);
@@ -405,18 +419,43 @@ describe('Auth Middleware', async () => {
     headers.set('X-API-Key', 'test-secret');
     const ctx = {
       env: { API_SECRET: 'test-secret' },
-      request: { method: 'POST', headers },
+      request: { method: 'POST', url: TEST_URL, headers },
       next: async () => { nextCalled = true; return new Response('ok'); },
     };
     await onRequest(ctx);
     expect(nextCalled).toBe(true);
   });
 
+  it('allows same-origin POST without token', async () => {
+    let nextCalled = false;
+    const headers = new Map();
+    headers.set('Origin', 'https://garage-brain.pages.dev');
+    const ctx = {
+      env: { API_SECRET: 'test-secret' },
+      request: { method: 'POST', url: TEST_URL, headers },
+      next: async () => { nextCalled = true; return new Response('ok'); },
+    };
+    await onRequest(ctx);
+    expect(nextCalled).toBe(true);
+  });
+
+  it('blocks cross-origin POST without token', async () => {
+    const headers = new Map();
+    headers.set('Origin', 'https://different-site.com');
+    const ctx = {
+      env: { API_SECRET: 'test-secret' },
+      request: { method: 'POST', url: TEST_URL, headers },
+      next: async () => new Response('ok'),
+    };
+    const res = await onRequest(ctx);
+    expect(res.status).toBe(401);
+  });
+
   it('allows all methods in dev mode without secret', async () => {
     let nextCalled = false;
     const ctx = {
       env: { ENVIRONMENT: 'development' },
-      request: { method: 'POST', headers: new Map() },
+      request: { method: 'POST', url: TEST_URL, headers: new Map() },
       next: async () => { nextCalled = true; return new Response('ok'); },
     };
     await onRequest(ctx);

@@ -1,21 +1,35 @@
 // Auth middleware — protects all /api/* endpoints
-// For personal use: simple shared secret via header or cookie
-// Upgrade path: Cloudflare Access, OAuth, or JWT
+// Same-origin requests (the frontend) are allowed through.
+// External API calls require Bearer token or X-API-Key header.
 //
 // Set the secret via: wrangler secret put API_SECRET
 
 export async function onRequest(context) {
   const { env, request, next } = context;
 
-  // Only protect mutating methods
+  // GETs are always public
   if (request.method === 'GET') {
     return next();
   }
 
+  // Allow same-origin requests from the frontend.
+  // Browsers send Origin on same-site POSTs — if it matches our host, let it through.
+  const origin = request.headers.get('Origin');
+  const requestUrl = new URL(request.url);
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host;
+      if (originHost === requestUrl.host) {
+        return next();
+      }
+    } catch {
+      // Malformed origin — fall through to API key check
+    }
+  }
+
+  // External requests require API key
   const secret = env.API_SECRET;
   if (!secret) {
-    // No secret configured — reject all writes in production
-    // In dev, allow everything
     if (env.ENVIRONMENT === 'development') {
       return next();
     }
@@ -25,7 +39,6 @@ export async function onRequest(context) {
     );
   }
 
-  // Check Authorization header or X-API-Key header
   const authHeader = request.headers.get('Authorization');
   const apiKey = request.headers.get('X-API-Key');
   const token = authHeader?.replace('Bearer ', '') || apiKey;

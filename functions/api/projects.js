@@ -74,3 +74,48 @@ export async function onRequestPost(context) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
+
+export async function onRequestPatch(context) {
+  const { env, request } = context;
+  try {
+    const body = await request.json();
+    if (!body.id) {
+      return Response.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const updates = [];
+    const binds = [];
+
+    if (body.status != null) {
+      updates.push('status = ?');
+      binds.push(body.status);
+    }
+    if (body.notes != null) {
+      updates.push('notes = ?');
+      binds.push(body.notes);
+    }
+    if (body.title != null) {
+      updates.push('title = ?');
+      binds.push(body.title);
+    }
+
+    if (updates.length === 0) {
+      return Response.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    binds.push(body.id);
+
+    const result = await env.DB.prepare(
+      `UPDATE projects SET ${updates.join(', ')} WHERE id = ?`
+    ).bind(...binds).run();
+
+    if (result.meta.changes === 0) {
+      return Response.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    return Response.json({ success: true });
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 500 });
+  }
+}
