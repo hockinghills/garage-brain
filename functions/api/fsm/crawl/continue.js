@@ -33,6 +33,13 @@ export async function onRequestPost(context) {
   }
 
   if (pendingIdxs.length === 0) {
+    const inProgressCount = jobData.sections.filter(s => s.status === 'in_progress').length;
+    if (inProgressCount > 0) {
+      return Response.json(
+        { message: 'A batch is still processing; retry shortly.', inProgress: inProgressCount, ...jobData },
+        { status: 409 }
+      );
+    }
     jobData.status = jobData.failed === 0 ? 'complete' : 'partial';
     jobData.completedAt = new Date().toISOString();
     await env.CACHE.put(`job:${jobId}`, JSON.stringify(jobData), { expirationTtl: 86400 });
@@ -84,8 +91,18 @@ export async function onRequestPost(context) {
           });
 
           await env.DB.prepare(
-            `INSERT OR REPLACE INTO fsm_sections (vehicle_id, title, r2_key) VALUES (?, ?, ?)`
-          ).bind(jobData.vehicle_id, `${section.code} — ${section.name}`, r2Key).run();
+            `INSERT INTO fsm_sections (vehicle_id, title, r2_key)
+             SELECT ?, ?, ?
+             WHERE NOT EXISTS (
+               SELECT 1 FROM fsm_sections WHERE vehicle_id = ? AND title = ?
+             )`
+          ).bind(
+            jobData.vehicle_id,
+            `${section.code} — ${section.name}`,
+            r2Key,
+            jobData.vehicle_id,
+            `${section.code} — ${section.name}`
+          ).run();
 
           section.status = 'done';
           section.r2Key = r2Key;
