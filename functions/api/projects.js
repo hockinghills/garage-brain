@@ -16,33 +16,33 @@ export async function onRequestGet(context) {
     query += ' ORDER BY updated_at DESC';
     const { results } = await env.DB.prepare(query).bind(...binds).all();
 
-    // Fetch steps, parts, and tools for each project
+    // Fetch related data for each project in parallel
     for (const project of results) {
-      const steps = await env.DB.prepare(
-        'SELECT * FROM steps WHERE project_id = ? ORDER BY sort_order'
-      ).bind(project.id).all();
+      const [steps, parts, tools, fsm] = await Promise.all([
+        env.DB.prepare(
+          'SELECT * FROM steps WHERE project_id = ? ORDER BY sort_order'
+        ).bind(project.id).all(),
+        env.DB.prepare(
+          'SELECT * FROM parts WHERE project_id = ? ORDER BY id'
+        ).bind(project.id).all(),
+        env.DB.prepare(
+          `SELECT t.*, pt.notes as project_note
+           FROM tools t
+           JOIN project_tools pt ON t.id = pt.tool_id
+           WHERE pt.project_id = ?
+           ORDER BY t.name`
+        ).bind(project.id).all(),
+        env.DB.prepare(
+          `SELECT fs.title, fs.r2_key
+           FROM fsm_sections fs
+           JOIN project_fsm pf ON fs.id = pf.fsm_section_id
+           WHERE pf.project_id = ?`
+        ).bind(project.id).all(),
+      ]);
+
       project.steps = steps.results;
-
-      const parts = await env.DB.prepare(
-        'SELECT * FROM parts WHERE project_id = ? ORDER BY id'
-      ).bind(project.id).all();
       project.parts = parts.results;
-
-      const tools = await env.DB.prepare(
-        `SELECT t.*, pt.notes as project_note
-         FROM tools t
-         JOIN project_tools pt ON t.id = pt.tool_id
-         WHERE pt.project_id = ?
-         ORDER BY t.name`
-      ).bind(project.id).all();
       project.tools = tools.results;
-
-      const fsm = await env.DB.prepare(
-        `SELECT fs.title, fs.r2_key
-         FROM fsm_sections fs
-         JOIN project_fsm pf ON fs.id = pf.fsm_section_id
-         WHERE pf.project_id = ?`
-      ).bind(project.id).all();
       project.fsmSections = fsm.results;
     }
 
@@ -56,6 +56,12 @@ export async function onRequestPost(context) {
   const { env, request } = context;
   try {
     const body = await request.json();
+    if (!body.vehicle_id || !body.title || !body.module) {
+      return Response.json(
+        { error: 'vehicle_id, title, and module are required' },
+        { status: 400 }
+      );
+    }
     const id = `${body.vehicle_id}-${Date.now()}`;
     await env.DB.prepare(
       `INSERT INTO projects (id, vehicle_id, title, status, module, notes)

@@ -644,7 +644,7 @@ function ProjectView({ vehicle, project, onBack, onToggleStep, onUpdateNotes, on
       )}
 
       {/* Notes */}
-      {project.notes && (
+      {project.notes != null && (
         <div style={{
           padding: 12, background: "#0f0f0a", borderRadius: 8,
           border: `1px solid #2a2a1a`, marginBottom: 12,
@@ -1624,10 +1624,20 @@ export default function GarageBrain() {
             onLaunchTroubleshoot={() => setView("troubleshoot")}
             onUpdateNotes={(note) => {
               const ts = new Date().toLocaleString();
-              setSelectedProject(prev => ({
-                ...prev,
-                notes: prev.notes + `\n\n[${ts}] ${note}`,
-              }));
+              const updatedProject = {
+                ...selectedProject,
+                notes: `${selectedProject.notes || ""}\n\n[${ts}] ${note}`,
+              };
+              setSelectedProject(updatedProject);
+              setVehicles(prev => prev.map(v =>
+                v.id !== selectedVehicle.id ? v
+                  : { ...v, projects: v.projects.map(p => p.id === updatedProject.id ? updatedProject : p) }
+              ));
+              setSelectedVehicle(prev =>
+                prev && prev.id === selectedVehicle.id
+                  ? { ...prev, projects: prev.projects.map(p => p.id === updatedProject.id ? updatedProject : p) }
+                  : prev
+              );
             }}
           />
         )}

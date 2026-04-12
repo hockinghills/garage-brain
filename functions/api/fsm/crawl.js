@@ -165,11 +165,14 @@ export async function onRequestPost(context) {
 
     // Slow path — need to discover sections via Browser Rendering
     // For now, return a helpful message about manual discovery
-    return Response.json({
-      message: `No pre-mapped sections for ${model} ${year}. Use the manual discovery endpoint or add sections to KNOWN_SECTIONS.`,
-      hint: "POST to /api/fsm/crawl/discover with the same params to use Browser Rendering",
-      availableKnown: Object.keys(KNOWN_SECTIONS),
-    });
+    return Response.json(
+      {
+        message: `No pre-mapped sections for ${model} ${year}. Browser-based discovery is not implemented yet.`,
+        hint: "Add sections to KNOWN_SECTIONS or upload PDFs manually via /api/fsm/upload.",
+        availableKnown: Object.keys(KNOWN_SECTIONS),
+      },
+      { status: 501 }
+    );
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
