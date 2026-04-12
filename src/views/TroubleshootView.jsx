@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import BackButton from "../components/BackButton.jsx";
 import { css, border, textSec, textDim, textPri, accent, font } from "../styles.js";
 
-export default function TroubleshootView({ vehicle, project, onBack }) {
+export default function TroubleshootView({ vehicle, project, onBack, onSave }) {
   const ts = project.troubleshooting;
   if (!ts) return null;
 
@@ -12,6 +12,18 @@ export default function TroubleshootView({ vehicle, project, onBack }) {
     return firstUntested === -1 ? steps.length - 1 : firstUntested;
   });
   const [measureValue, setMeasureValue] = useState("");
+  const isFirstRender = useRef(true);
+
+  // Persist troubleshooting results whenever steps change
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (onSave) {
+      onSave({ steps });
+    }
+  }, [steps]);
 
   const activeStep = steps[activeIdx];
   const testedCount = steps.filter(s => s.result !== null).length;

@@ -61,6 +61,12 @@ export default function GarageBrain() {
     }
   }, [selectedVehicleId, data]);
 
+  const handleSaveTroubleshooting = useCallback((tsData) => {
+    if (selectedVehicleId && selectedProjectId) {
+      data.updateTroubleshooting(selectedVehicleId, selectedProjectId, tsData);
+    }
+  }, [selectedVehicleId, selectedProjectId, data]);
+
   // Render current view
   const renderView = () => {
     if (loading) {
@@ -102,7 +108,8 @@ export default function GarageBrain() {
     }
     if (view === "troubleshoot" && selectedVehicle && selectedProject) {
       return <TroubleshootView vehicle={selectedVehicle} project={selectedProject}
-        onBack={() => goBack("project")} />;
+        onBack={() => goBack("project")}
+        onSave={handleSaveTroubleshooting} />;
     }
 
     return null;

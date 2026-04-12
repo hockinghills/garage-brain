@@ -1,189 +1,193 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import * as api from "../api.js";
-
-// Seed data — used when API is empty or unavailable (local dev without D1)
 import { SEED_VEHICLES } from "../seed.js";
 
+// --- localStorage helpers ---
+const STORAGE_KEY = "garage-brain-data";
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* corrupt data — ignore */ }
+  return null;
+}
+
+function saveToStorage(vehicles) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(vehicles));
+  } catch { /* storage full — ignore */ }
+}
+
 export default function useGarageData() {
-  const [vehicles, setVehicles] = useState([]);
+  const [vehicles, setVehiclesRaw] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [usingLocal, setUsingLocal] = useState(false);
+  const initialLoadDone = useRef(false);
 
-  // Load vehicles + their projects from API
+  // Wrap setVehicles to auto-persist
+  const setVehicles = useCallback((updater) => {
+    setVehiclesRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
+
+  // Load: localStorage first (instant), then try API to merge
   const loadVehicles = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // 1. Hydrate from localStorage immediately
+    const cached = loadFromStorage();
+    if (cached && cached.length > 0) {
+      setVehiclesRaw(cached);
+      setUsingLocal(true);
+      setLoading(false);
+      initialLoadDone.current = true;
+      // Still try API in background to pick up new vehicles
+    }
+
+    // 2. If no cache, start with seed data
+    if (!cached || cached.length === 0) {
+      setVehiclesRaw(SEED_VEHICLES);
+      saveToStorage(SEED_VEHICLES);
+      setUsingLocal(true);
+      setLoading(false);
+      initialLoadDone.current = true;
+    }
+
+    // 3. Try API — if it responds, merge any new vehicles from D1
+    //    but DON'T blow away local project data
     try {
       const vList = await api.fetchVehicles();
-      if (vList.length === 0) {
-        // D1 is empty — use seed data so the app isn't blank
-        setVehicles(SEED_VEHICLES);
-        setUsingLocal(true);
-        setLoading(false);
-        return;
-      }
-
-      // Enrich each vehicle with its projects from D1
-      const enriched = await Promise.all(
-        vList.map(async (v) => {
-          let projects = [];
-          try {
-            projects = await api.fetchProjects(v.id);
-          } catch {
-            // API failed for this vehicle
-          }
-
-          // If D1 has no projects for this vehicle, merge in seed data.
-          // This preserves the pre-built troubleshooting trees, repair guides,
-          // parts/tools lists — the core data that makes the app useful.
-          // Match by year + make since D1 IDs differ from seed IDs.
-          if (projects.length === 0) {
-            const seedVehicle = SEED_VEHICLES.find(
-              sv => sv.year === v.year && sv.make === v.make
+      if (vList.length > 0) {
+        setVehiclesRaw(prev => {
+          const merged = [...prev];
+          for (const apiVehicle of vList) {
+            const existing = merged.find(v =>
+              v.id === apiVehicle.id ||
+              (v.year === apiVehicle.year && v.make === apiVehicle.make)
             );
-            if (seedVehicle?.projects) {
-              projects = seedVehicle.projects.map(p => ({
-                ...p,
-                vehicle_id: v.id,  // Remap to D1 vehicle ID
-              }));
+            if (!existing) {
+              // New vehicle from D1 we don't have locally — add it
+              merged.push({ ...apiVehicle, projects: [] });
             }
+            // Don't overwrite local vehicles — local data has the projects
           }
-
-          return { ...v, projects };
-        })
-      );
-
-      setVehicles(enriched);
-      setUsingLocal(false);
-    } catch (e) {
-      console.warn("API unavailable, using seed data:", e.message);
-      setVehicles(SEED_VEHICLES);
-      setUsingLocal(true);
+          saveToStorage(merged);
+          return merged;
+        });
+      }
+    } catch {
+      // API unavailable — that's fine, we have local data
     }
+
     setLoading(false);
   }, []);
 
   useEffect(() => { loadVehicles(); }, [loadVehicles]);
 
-  // --- Mutations ---
+  // --- Mutations (all persist to localStorage automatically via setVehicles) ---
 
   const addVehicle = useCallback(async (vehicleData) => {
-    if (usingLocal) {
-      const id = `${vehicleData.make}-${vehicleData.model}-${vehicleData.year}`.toLowerCase().replace(/\s+/g, '-');
-      const newVehicle = { id, ...vehicleData, projects: [] };
-      setVehicles(prev => [...prev, newVehicle]);
-      return newVehicle;
-    }
-
-    const { id } = await api.createVehicle(vehicleData);
+    const id = `${vehicleData.make}-${vehicleData.model}-${vehicleData.year}`
+      .toLowerCase().replace(/\s+/g, '-');
     const newVehicle = { id, ...vehicleData, projects: [] };
     setVehicles(prev => [...prev, newVehicle]);
+
+    // Also try D1
+    try { await api.createVehicle(vehicleData); } catch { /* local is fine */ }
+
     return newVehicle;
-  }, [usingLocal]);
+  }, [setVehicles]);
 
   const addProject = useCallback(async (vehicleId, projectData) => {
-    if (usingLocal) {
-      const id = `${vehicleId}-${Date.now()}`;
-      const newProject = {
-        ...projectData, id,
-        vehicle_id: vehicleId,
-        created: new Date().toISOString().split("T")[0],
-        steps: projectData.steps || [],
-        parts: projectData.parts || [],
-        tools: projectData.tools || [],
-        fsmSections: projectData.fsmSections || [],
-      };
-      setVehicles(prev => prev.map(v =>
-        v.id === vehicleId ? { ...v, projects: [...v.projects, newProject] } : v
-      ));
-      return newProject;
-    }
-
-    const { id } = await api.createProject({
-      vehicle_id: vehicleId,
-      title: projectData.title,
-      module: projectData.module,
-      status: projectData.status || "planned",
-      notes: projectData.notes,
-    });
+    const id = `${vehicleId}-${Date.now()}`;
     const newProject = {
-      ...projectData, id, vehicle_id: vehicleId,
-      steps: [], parts: [], tools: [], fsmSections: [],
+      ...projectData, id,
+      vehicle_id: vehicleId,
+      created_at: new Date().toISOString().split("T")[0],
+      steps: projectData.steps || [],
+      parts: projectData.parts || [],
+      tools: projectData.tools || [],
+      fsmSections: projectData.fsmSections || [],
     };
     setVehicles(prev => prev.map(v =>
-      v.id === vehicleId ? { ...v, projects: [...v.projects, newProject] } : v
+      v.id === vehicleId ? { ...v, projects: [...(v.projects || []), newProject] } : v
     ));
     return newProject;
-  }, [usingLocal]);
+  }, [setVehicles]);
 
-  const toggleStep = useCallback(async (vehicleId, projectId, stepIdx) => {
+  const toggleStep = useCallback((vehicleId, projectId, stepIdx) => {
     setVehicles(prev => prev.map(v => {
       if (v.id !== vehicleId) return v;
       return {
         ...v,
-        projects: v.projects.map(p => {
+        projects: (v.projects || []).map(p => {
           if (p.id !== projectId) return p;
           const newSteps = [...p.steps];
-          const step = newSteps[stepIdx];
-          newSteps[stepIdx] = { ...step, done: !step.done };
-
-          // Fire API call in background (don't block UI)
-          if (!usingLocal && step.id != null) {
-            api.toggleStep(step.id, !step.done).catch(console.error);
-          }
-
-          return { ...p, steps: newSteps, updated: new Date().toISOString().split("T")[0] };
+          newSteps[stepIdx] = { ...newSteps[stepIdx], done: !newSteps[stepIdx].done };
+          return { ...p, steps: newSteps, updated_at: new Date().toISOString().split("T")[0] };
         }),
       };
     }));
-  }, [usingLocal]);
+  }, [setVehicles]);
 
-  const addNote = useCallback(async (vehicleId, projectId, note) => {
+  const addNote = useCallback((vehicleId, projectId, note) => {
     const ts = new Date().toLocaleString();
-    const formatted = `\n\n[${ts}] ${note}`;
-
     setVehicles(prev => prev.map(v => {
       if (v.id !== vehicleId) return v;
       return {
         ...v,
-        projects: v.projects.map(p => {
+        projects: (v.projects || []).map(p => {
           if (p.id !== projectId) return p;
-          return { ...p, notes: (p.notes || "") + formatted };
+          return { ...p, notes: (p.notes || "") + `\n\n[${ts}] ${note}` };
         }),
       };
     }));
+  }, [setVehicles]);
 
-    if (!usingLocal) {
-      api.addJournalEntry(projectId, note).catch(console.error);
-      api.updateProject(projectId, {
-        notes: null, // The full notes field will be synced on next load
-      }).catch(() => {});
-    }
-  }, [usingLocal]);
-
-  const updateProjectStatus = useCallback(async (vehicleId, projectId, status) => {
+  const updateProjectStatus = useCallback((vehicleId, projectId, status) => {
     setVehicles(prev => prev.map(v => {
       if (v.id !== vehicleId) return v;
       return {
         ...v,
-        projects: v.projects.map(p =>
+        projects: (v.projects || []).map(p =>
           p.id === projectId ? { ...p, status } : p
         ),
       };
     }));
+  }, [setVehicles]);
 
-    if (!usingLocal) {
-      api.updateProject(projectId, { status }).catch(console.error);
-    }
-  }, [usingLocal]);
+  // Save troubleshooting state back into the project
+  const updateTroubleshooting = useCallback((vehicleId, projectId, troubleshootingData) => {
+    setVehicles(prev => prev.map(v => {
+      if (v.id !== vehicleId) return v;
+      return {
+        ...v,
+        projects: (v.projects || []).map(p => {
+          if (p.id !== projectId) return p;
+          return { ...p, troubleshooting: { ...p.troubleshooting, ...troubleshootingData } };
+        }),
+      };
+    }));
+  }, [setVehicles]);
 
-  // Get a fresh reference to a specific vehicle/project from current state
   const getVehicle = useCallback((id) => vehicles.find(v => v.id === id), [vehicles]);
   const getProject = useCallback((vehicleId, projectId) => {
     const v = vehicles.find(v => v.id === vehicleId);
     return v?.projects?.find(p => p.id === projectId);
   }, [vehicles]);
+
+  // Reset to seed data (dev helper)
+  const resetData = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    setVehiclesRaw(SEED_VEHICLES);
+    saveToStorage(SEED_VEHICLES);
+  }, []);
 
   return {
     vehicles,
@@ -195,8 +199,10 @@ export default function useGarageData() {
     toggleStep,
     addNote,
     updateProjectStatus,
+    updateTroubleshooting,
     getVehicle,
     getProject,
+    resetData,
     reload: loadVehicles,
   };
 }
