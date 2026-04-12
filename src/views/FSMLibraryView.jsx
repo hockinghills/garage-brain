@@ -104,9 +104,11 @@ export default function FSMLibraryView({ vehicle, onBack }) {
   const downloaded = jobData?.downloaded || 0;
   const failed = jobData?.failed || 0;
   const total = jobData?.total || sections.length;
+  const blocked = sections.filter(s => s.status === "blocked").length;
   const pending = sections.filter(s => s.status === "pending" || s.status === "in_progress").length;
   const isDone = jobData?.status === "complete" || jobData?.status === "partial";
-  const isRunning = jobId && !isDone && !crawlError;
+  const hasBlocked = jobData?.status === "blocked" || jobData?.status === "has_blocked";
+  const isRunning = jobId && !isDone && !hasBlocked && !crawlError;
 
   const sources = [
     { id: "nicoclub_nissan", name: "NICOclub — Nissan", models: "Leaf, Altima, Maxima, Frontier, etc." },
@@ -131,7 +133,10 @@ export default function FSMLibraryView({ vehicle, onBack }) {
         {total > 0 && (
           <>
             <div style={{ fontSize: 11, color: textSec, marginTop: 4 }}>
-              {downloaded} downloaded · {failed > 0 ? `${failed} failed · ` : ""}{pending} remaining
+              {downloaded} downloaded
+              {blocked > 0 ? ` · ${blocked} rate limited` : ""}
+              {failed > 0 ? ` · ${failed} failed` : ""}
+              {pending > 0 ? ` · ${pending} remaining` : ""}
             </div>
             <div style={{ marginTop: 8 }}>
               <div style={{ height: 3, background: "#1a1a24", borderRadius: 2, overflow: "hidden" }}>
@@ -255,6 +260,30 @@ export default function FSMLibraryView({ vehicle, onBack }) {
         </div>
       )}
 
+      {/* Blocked by rate limiting — retryable */}
+      {hasBlocked && (
+        <div style={{
+          padding: 12, background: "#1a1208", borderRadius: 8,
+          border: "1px solid #3a2a0a", marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 13, color: "#f59e0b", marginBottom: 6 }}>
+            ⚠ {blocked} section{blocked !== 1 ? "s" : ""} blocked by rate limiting
+          </div>
+          <div style={{ fontSize: 11, color: textSec, lineHeight: 1.5, marginBottom: 10 }}>
+            NICOclub's server started blocking downloads after {downloaded} sections.
+            These sections exist — the server just needs time to cool down. Try again in a few minutes.
+          </div>
+          <div style={{ fontSize: 10, color: textDim, marginBottom: 10 }}>
+            Blocked: {sections.filter(s => s.status === "blocked").map(s => s.code).join(", ")}
+          </div>
+          <button onClick={() => processNextBatch(jobId)}
+            disabled={continuing}
+            style={{ ...css.btn("#f59e0b"), opacity: continuing ? 0.5 : 1 }}>
+            {continuing ? "Retrying..." : `↻ RETRY ${blocked} BLOCKED SECTION${blocked !== 1 ? "S" : ""}`}
+          </button>
+        </div>
+      )}
+
       {/* Section List */}
       {sections.length > 0 && (
         <div style={{
@@ -267,10 +296,12 @@ export default function FSMLibraryView({ vehicle, onBack }) {
           {sections.map((s, i) => {
             const statusColor = s.status === "done" ? accent
               : s.status === "failed" ? "#f87171"
+              : s.status === "blocked" ? "#f59e0b"
               : s.status === "in_progress" ? "#818cf8"
               : textDim;
             const statusIcon = s.status === "done" ? "✓"
               : s.status === "failed" ? "✗"
+              : s.status === "blocked" ? "⏳"
               : s.status === "in_progress" ? "↻"
               : "○";
             return (
@@ -296,6 +327,9 @@ export default function FSMLibraryView({ vehicle, onBack }) {
                 )}
                 {s.status === "failed" && (
                   <span style={{ fontSize: 10, color: "#f87171" }}>failed</span>
+                )}
+                {s.status === "blocked" && (
+                  <span style={{ fontSize: 10, color: "#f59e0b" }}>rate limited</span>
                 )}
                 {(s.status === "pending" || s.status === "in_progress") && (
                   <span style={{ fontSize: 10, color: textDim }}>
@@ -334,7 +368,7 @@ export default function FSMLibraryView({ vehicle, onBack }) {
       )}
 
       {/* Search — when we have sections */}
-      {(isDone || existingSections.length > 0) && (
+      {(isDone || hasBlocked || existingSections.length > 0) && (
         <div style={{
           padding: 12, background: "#080a14", borderRadius: 8,
           border: "1px solid #1a1a3e", marginBottom: 20,
