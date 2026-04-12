@@ -151,14 +151,15 @@ export async function onRequestPost(context) {
         { expirationTtl: 86400 } // 24h TTL
       );
 
-      // Kick off the download process via a scheduled fetch to ourselves
-      // (In production, use a Durable Object or Queue for this)
-      context.waitUntil(downloadSections(env, jobId));
+      // Kick off first batch — client polls GET and triggers /continue for more
+      // Each request processes up to BATCH_SIZE sections to stay within CPU limits
+      context.waitUntil(downloadBatch(env, jobId, 0));
 
       return Response.json({
         jobId,
-        message: `Found ${sections.length} known sections for ${model} ${year}. Downloading...`,
+        message: `Found ${sections.length} known sections for ${model} ${year}. Downloading in batches...`,
         sections: sections.map((s) => ({ code: s.code, name: s.name })),
+        hint: "Poll GET /api/fsm/crawl?job_id=XXX for status. POST /api/fsm/crawl/continue?job_id=XXX to process next batch.",
       });
     }
 
@@ -174,17 +175,19 @@ export async function onRequestPost(context) {
   }
 }
 
-// Background download function
-async function downloadSections(env, jobId) {
+// Batch size — process this many sections per request to stay within CPU limits
+// At 3s delay between downloads, 5 sections = ~15s which is well within the 5min paid limit
+const BATCH_SIZE = 5;
+
+// Download a batch of sections starting at the given index
+async function downloadBatch(env, jobId, startIdx) {
   const jobData = await env.CACHE.get(`job:${jobId}`, { type: "json" });
   if (!jobData) return;
 
   jobData.status = "downloading";
-  await env.CACHE.put(`job:${jobId}`, JSON.stringify(jobData), {
-    expirationTtl: 86400,
-  });
+  const endIdx = Math.min(startIdx + BATCH_SIZE, jobData.sections.length);
 
-  for (let i = 0; i < jobData.sections.length; i++) {
+  for (let i = startIdx; i < endIdx; i++) {
     const section = jobData.sections[i];
 
     try {
@@ -248,20 +251,26 @@ async function downloadSections(env, jobId) {
     });
 
     // Rate limit — wait between downloads to be respectful
-    // NICOclub rate-limits aggressively, so be nice
-    if (i < jobData.sections.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // 3 sec between downloads
+    if (i < endIdx - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     }
   }
 
-  // Finalize
-  jobData.status =
-    jobData.failed === 0
-      ? "complete"
-      : jobData.downloaded > 0
-        ? "partial"
-        : "failed";
-  jobData.completedAt = new Date().toISOString();
+  // Check if there are more sections to process
+  const allDone = jobData.sections.every(s => s.status !== "pending");
+  if (allDone) {
+    jobData.status =
+      jobData.failed === 0
+        ? "complete"
+        : jobData.downloaded > 0
+          ? "partial"
+          : "failed";
+    jobData.completedAt = new Date().toISOString();
+  } else {
+    jobData.status = "downloading";
+    jobData.nextBatchStart = endIdx;
+  }
+
   await env.CACHE.put(`job:${jobId}`, JSON.stringify(jobData), {
     expirationTtl: 86400,
   });
