@@ -12,7 +12,7 @@ function guessSource(vehicle) {
 }
 
 function guessModel(vehicle) {
-  // Strip trim level — "Leaf SL" → "Leaf", "QX60" → "QX60"
+  // Strip trim level — e.g. "Camry LE" → "Camry"
   return vehicle.model?.split(/\s+/)[0] || vehicle.model;
 }
 
