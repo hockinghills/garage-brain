@@ -1,11 +1,11 @@
 import { css, textSec, textDim, border, font } from "../styles.js";
 
 const SUGGESTIONS = [
-  "47RE torque specs",
-  "Leaf blower transistor location",
-  "Golf fuel pump relay",
-  "QX60 alignment specs",
-  "ATF+4 capacity Ram",
+  "brake pad torque specs",
+  "fuel pump relay location",
+  "alignment specifications",
+  "transmission fluid capacity",
+  "wiring diagram HVAC",
 ];
 
 export default function SearchView() {

@@ -5,7 +5,7 @@ import { css, surface, border, textSec, textDim, textPri, accent, font } from ".
 // FSM refs like "BL-8" mean "Blower section, page/diagram 8"
 // but the actual PDF file is HA.pdf (Heater and A/C).
 const CODE_MAP = {
-  // Leaf HVAC / blower
+  // HVAC / blower system
   "BL": ["HA", "HAC"],       // Blower → Heater & A/C
   "EC": ["BCS", "EVC"],      // Electrical Control → Body Control / EV Control
   "PG": ["PG"],              // Power & Ground → direct match
