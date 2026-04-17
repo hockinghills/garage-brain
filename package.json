@@ -1,30 +1,30 @@
 {
   "name": "garage-brain",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite dev",
     "build": "vite build",
-    "preview": "wrangler pages dev dist",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy": "wrangler pages deploy dist",
-    "db:migrate": "wrangler d1 execute garage-brain-db --file=./db/schema.sql",
-    "db:migrate:local": "wrangler d1 execute garage-brain-db --local --file=./db/schema.sql"
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types env.d.ts --include-runtime false"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@cloudflare/kumo": "^1.18.0",
+    "agents": "^0.11.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250410.0",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@vitejs/plugin-react": "^4.3.4",
-    "jsdom": "^29.0.2",
-    "vite": "^6.3.1",
-    "vitest": "^4.1.4",
-    "wrangler": "^4.6.0"
+    "@cloudflare/vite-plugin": "^1.32.3",
+    "@cloudflare/workers-types": "^4.20260416.2",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8",
+    "wrangler": "4.83.0"
   }
 }
