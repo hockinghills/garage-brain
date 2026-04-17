@@ -1,21 +1,8 @@
-import { Agent, routeAgentRequest, callable } from "agents";
+import { routeAgentRequest } from "agents";
 
-export type GarageState = {
-  greeting: string;
-  vehicleCount: number;
-};
-
-export class GarageAgent extends Agent<Env, GarageState> {
-  initialState: GarageState = {
-    greeting: "Welcome to the garage.",
-    vehicleCount: 0,
-  };
-
-  @callable()
-  ping() {
-    return "Hey. The garage is open.";
-  }
-}
+export { GarageAgent } from "./agents/garage";
+export { VehicleAgent } from "./agents/vehicle";
+export { ToolboxAgent } from "./agents/toolbox";
 
 export default {
   async fetch(request: Request, env: Env) {
