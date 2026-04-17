@@ -6,6 +6,9 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "observability": {
+    "enabled": true
+  },
   "assets": {
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",
@@ -18,6 +21,10 @@
       {
         "class_name": "GarageAgent",
         "name": "GARAGE_AGENT"
+      },
+      {
+        "class_name": "VehicleAgent",
+        "name": "VEHICLE_AGENT"
       }
     ]
   },
@@ -27,6 +34,12 @@
         "GarageAgent"
       ],
       "tag": "v1"
+    },
+    {
+      "new_sqlite_classes": [
+        "VehicleAgent"
+      ],
+      "tag": "v2"
     }
   ]
 }
