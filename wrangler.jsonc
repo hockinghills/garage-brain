@@ -15,18 +15,19 @@
   },
   "durable_objects": {
     "bindings": [
-      {
-        "class_name": "GarageAgent",
-        "name": "GARAGE_AGENT"
-      }
+      { "class_name": "GarageAgent", "name": "GarageAgent" },
+      { "class_name": "VehicleAgent", "name": "VehicleAgent" },
+      { "class_name": "ToolboxAgent", "name": "ToolboxAgent" }
     ]
   },
   "migrations": [
     {
-      "new_sqlite_classes": [
-        "GarageAgent"
-      ],
+      "new_sqlite_classes": ["GarageAgent"],
       "tag": "v1"
+    },
+    {
+      "new_sqlite_classes": ["VehicleAgent", "ToolboxAgent"],
+      "tag": "v2"
     }
   ]
 }
