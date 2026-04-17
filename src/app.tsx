@@ -534,6 +534,59 @@ function ProjectView({
           </button>
         </form>
       </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-2">Journal</h3>
+        <form
+          className="mb-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const data = new FormData(form);
+            const entry = String(data.get("entry") || "").trim();
+            if (!entry) return;
+            await vehicle.stub.addJournalEntry(project.id, entry);
+            form.reset();
+          }}
+        >
+          <textarea
+            name="entry"
+            className={inputCls + " w-full"}
+            rows={2}
+            placeholder="What happened? What did you learn?"
+          />
+          <div className="mt-2 flex justify-end">
+            <button type="submit" className={primaryBtnCls}>
+              Add entry
+            </button>
+          </div>
+        </form>
+        {project.journal.length === 0 ? (
+          <p className="text-kumo-text-secondary text-sm">No entries yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {project.journal.map((j) => (
+              <li
+                key={j.id}
+                className="p-3 rounded border border-kumo-border-subtle"
+              >
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 whitespace-pre-wrap text-sm">{j.entry}</p>
+                  <button
+                    className="text-kumo-text-secondary hover:text-kumo-text-danger text-xs"
+                    onClick={() => vehicle.stub.deleteJournalEntry(j.id)}
+                  >
+                    remove
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-kumo-text-secondary">
+                  {new Date(j.created_at * 1000).toLocaleString()}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -58,9 +58,17 @@ export type ProjectRow = {
   updated_at: number;
 };
 
+export type JournalEntry = {
+  id: number;
+  project_id: string;
+  entry: string;
+  created_at: number;
+};
+
 export type ProjectDetail = ProjectRow & {
   steps: Step[];
   parts: Part[];
+  journal: JournalEntry[];
 };
 
 const defaultIdentity: VehicleIdentity = {
@@ -117,8 +125,17 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
         notes TEXT
       )
     `;
+    this.sql`
+      CREATE TABLE IF NOT EXISTS journal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id TEXT NOT NULL,
+        entry TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      )
+    `;
     this.sql`CREATE INDEX IF NOT EXISTS idx_steps_project ON steps(project_id, sort_order)`;
     this.sql`CREATE INDEX IF NOT EXISTS idx_parts_project ON parts(project_id)`;
+    this.sql`CREATE INDEX IF NOT EXISTS idx_journal_project ON journal(project_id, created_at DESC)`;
 
     this.refreshProjectList();
   }
@@ -225,6 +242,7 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
   deleteProject(id: string): void {
     this.sql`DELETE FROM steps WHERE project_id = ${id}`;
     this.sql`DELETE FROM parts WHERE project_id = ${id}`;
+    this.sql`DELETE FROM journal WHERE project_id = ${id}`;
     this.sql`DELETE FROM projects WHERE id = ${id}`;
     const activeProjectId =
       this.state.activeProjectId === id ? null : this.state.activeProjectId;
@@ -244,7 +262,10 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
     const parts = this.sql<Part>`
       SELECT * FROM parts WHERE project_id = ${id}
     `;
-    return { ...project, steps, parts };
+    const journal = this.sql<JournalEntry>`
+      SELECT * FROM journal WHERE project_id = ${id} ORDER BY created_at DESC
+    `;
+    return { ...project, steps, parts, journal };
   }
 
   @callable()
@@ -375,6 +396,28 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
     `;
     if (!row) return;
     this.sql`DELETE FROM parts WHERE id = ${partId}`;
+    this.touchProject(row.project_id);
+  }
+
+  @callable()
+  addJournalEntry(projectId: string, entry: string): JournalEntry {
+    const text = entry.trim();
+    if (!text) throw new Error("journal entry is empty");
+    const [row] = this.sql<JournalEntry>`
+      INSERT INTO journal (project_id, entry) VALUES (${projectId}, ${text})
+      RETURNING *
+    `;
+    this.touchProject(projectId);
+    return row;
+  }
+
+  @callable()
+  deleteJournalEntry(entryId: number): void {
+    const [row] = this.sql<{ project_id: string }>`
+      SELECT project_id FROM journal WHERE id = ${entryId}
+    `;
+    if (!row) return;
+    this.sql`DELETE FROM journal WHERE id = ${entryId}`;
     this.touchProject(row.project_id);
   }
 }
