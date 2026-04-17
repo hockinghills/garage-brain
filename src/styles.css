@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "@cloudflare/kumo/styles/tailwind";
-@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@source "@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
 
 html, body, #root {
   width: 100%;

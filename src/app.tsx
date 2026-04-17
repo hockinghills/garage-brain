@@ -16,8 +16,13 @@ export default function App() {
         <button
           className="px-4 py-2 rounded-lg bg-kumo-bg-brand text-kumo-text-on-brand"
           onClick={async () => {
-            const reply = await agent.call("ping");
-            alert(reply);
+            try {
+              const reply = await agent.call("ping");
+              alert(reply);
+            } catch (err) {
+              console.error("agent.call(ping) failed", err);
+              alert(`Agent call failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
           }}
         >
           Knock knock
