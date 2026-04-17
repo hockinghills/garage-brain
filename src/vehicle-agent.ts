@@ -137,6 +137,15 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
     this.refreshProjectList();
   }
 
+  /**
+   * Internal-only: seed identity on creation without triggering the
+   * bidirectional sync back to GarageAgent. Used by GarageAgent.addVehicle,
+   * which is the authoritative source at creation time.
+   */
+  seedIdentity(identity: VehicleIdentity): void {
+    this.setState({ ...this.state, identity });
+  }
+
   @callable()
   async setIdentity(patch: Partial<VehicleIdentity>): Promise<VehicleIdentity> {
     const next = { ...this.state.identity, ...patch };
@@ -146,14 +155,16 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
     ).some((k) => k in patch);
     if (touched && this.name) {
       const garage = await getAgentByName(this.env.GARAGE_AGENT, "default");
-      await garage.updateVehicleListing(this.name, {
+      // Fire-and-forget so we don't deadlock on reentrancy: GarageAgent may be
+      // the one currently awaiting us. The listing update is best-effort.
+      garage.updateVehicleListing(this.name, {
         year: next.year,
         make: next.make,
         model: next.model,
         nickname: next.nickname,
         color: next.color,
         icon: next.icon,
-      });
+      }).catch((err) => console.error("updateVehicleListing failed", err));
     }
     return next;
   }

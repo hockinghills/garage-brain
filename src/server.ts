@@ -67,7 +67,7 @@ export class GarageAgent extends Agent<Env, GarageState> {
       vin: null,
     };
     const stub = await getAgentByName(this.env.VEHICLE_AGENT, id);
-    await stub.setIdentity(identity);
+    await stub.seedIdentity(identity);
 
     this.setState({
       ...this.state,
