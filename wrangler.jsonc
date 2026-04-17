@@ -18,6 +18,10 @@
       {
         "class_name": "GarageAgent",
         "name": "GARAGE_AGENT"
+      },
+      {
+        "class_name": "VehicleAgent",
+        "name": "VEHICLE_AGENT"
       }
     ]
   },
@@ -27,6 +31,12 @@
         "GarageAgent"
       ],
       "tag": "v1"
+    },
+    {
+      "new_sqlite_classes": [
+        "VehicleAgent"
+      ],
+      "tag": "v2"
     }
   ]
 }
