@@ -45,6 +45,7 @@ export class GarageAgent extends Agent<Env, GarageState> {
 
   @callable()
   async addVehicle(input: AddVehicleInput): Promise<VehicleListing> {
+    console.log("addVehicle:start", JSON.stringify(input));
     const id = crypto.randomUUID();
     const listing: VehicleListing = {
       id,
@@ -66,13 +67,22 @@ export class GarageAgent extends Agent<Env, GarageState> {
       icon: listing.icon,
       vin: null,
     };
+    console.log("addVehicle:got-id", id);
     const stub = await getAgentByName(this.env.VEHICLE_AGENT, id);
-    await stub.seedIdentity(identity);
+    console.log("addVehicle:got-stub");
+    try {
+      await stub.seedIdentity(identity);
+      console.log("addVehicle:seeded-identity");
+    } catch (err) {
+      console.error("addVehicle:seed-failed", err instanceof Error ? err.message : String(err));
+      throw err;
+    }
 
     this.setState({
       ...this.state,
       vehicles: [listing, ...this.state.vehicles],
     });
+    console.log("addVehicle:done", id);
     return listing;
   }
 
