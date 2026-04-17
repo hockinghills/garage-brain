@@ -14,11 +14,11 @@ export function ToolboxView({ agent }: { agent: AgentLike }) {
 
   const add = async () => {
     if (!name.trim()) return;
-    await agent.call("addTool", {
+    await agent.call("addTool", [{
       name,
       category: category || undefined,
       location: location || undefined,
-    });
+    }]);
     setName("");
     setCategory("");
     setLocation("");
@@ -110,7 +110,7 @@ export function ToolboxView({ agent }: { agent: AgentLike }) {
                         className="opacity-0 group-hover:opacity-100 text-sm text-kumo-text-danger"
                         onClick={async () => {
                           if (confirm(`Remove "${t.name}"?`)) {
-                            await agent.call("deleteTool", t.id);
+                            await agent.call("deleteTool", [t.id]);
                           }
                         }}
                       >

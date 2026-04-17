@@ -26,12 +26,12 @@ export function VehicleView({
 
   // Seed info on first load if missing
   if (state && !state.info) {
-    agent.call("setInfo", {
+    agent.call("setInfo", [{
       make: vehicleRef.make,
       model: vehicleRef.model,
       year: vehicleRef.year,
       nickname: vehicleRef.nickname,
-    });
+    }]);
   }
 
   const label = vehicleRef.nickname || `${vehicleRef.year} ${vehicleRef.make} ${vehicleRef.model}`;
@@ -111,7 +111,7 @@ function ProjectsTab({
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={async (e) => {
             if (e.key === "Enter" && title.trim()) {
-              await agent.call("addProject", { title });
+              await agent.call("addProject", [{ title }]);
               setTitle("");
             }
           }}
@@ -120,7 +120,7 @@ function ProjectsTab({
           className="px-4 py-2 rounded-lg bg-kumo-bg-brand text-kumo-text-on-brand font-medium disabled:opacity-50"
           disabled={!title.trim()}
           onClick={async () => {
-            await agent.call("addProject", { title });
+            await agent.call("addProject", [{ title }]);
             setTitle("");
           }}
         >
@@ -196,10 +196,10 @@ function ProjectCard({
               className="kumo-input text-sm"
               value={project.status}
               onChange={(e) =>
-                agent.call("updateProject", {
+                agent.call("updateProject", [{
                   id: project.id,
                   status: e.target.value as Project["status"],
-                })
+                }])
               }
             >
               <option value="open">Open</option>
@@ -210,7 +210,7 @@ function ProjectCard({
               className="ml-auto text-sm text-kumo-text-danger hover:underline"
               onClick={async () => {
                 if (confirm(`Delete "${project.title}"?`)) {
-                  await agent.call("deleteProject", project.id);
+                  await agent.call("deleteProject", [project.id]);
                 }
               }}
             >
@@ -232,10 +232,10 @@ function ProjectCard({
                     type="checkbox"
                     checked={s.done}
                     onChange={() =>
-                      agent.call("toggleStep", {
+                      agent.call("toggleStep", [{
                         projectId: project.id,
                         stepId: s.id,
-                      })
+                      }])
                     }
                   />
                   <span
@@ -250,10 +250,10 @@ function ProjectCard({
                   <button
                     className="opacity-0 group-hover:opacity-100 text-xs text-kumo-text-danger"
                     onClick={() =>
-                      agent.call("deleteStep", {
+                      agent.call("deleteStep", [{
                         projectId: project.id,
                         stepId: s.id,
-                      })
+                      }])
                     }
                   >
                     ✕
@@ -269,10 +269,10 @@ function ProjectCard({
                 onChange={(e) => setStepText(e.target.value)}
                 onKeyDown={async (e) => {
                   if (e.key === "Enter" && stepText.trim()) {
-                    await agent.call("addStep", {
+                    await agent.call("addStep", [{
                       projectId: project.id,
                       text: stepText,
-                    });
+                    }]);
                     setStepText("");
                   }
                 }}
@@ -292,10 +292,10 @@ function ProjectCard({
                     <button
                       key={p.id}
                       onClick={() =>
-                        agent.call(linked ? "unlinkPart" : "linkPart", {
+                        agent.call(linked ? "unlinkPart" : "linkPart", [{
                           projectId: project.id,
                           partId: p.id,
-                        })
+                        }])
                       }
                       className={`text-xs px-2 py-1 rounded border ${
                         linked
@@ -351,11 +351,11 @@ function PartsTab({
 
   const add = async () => {
     if (!name.trim()) return;
-    await agent.call("addPart", {
+    await agent.call("addPart", [{
       name,
       partNumber: partNumber || undefined,
       quantity: qty,
-    });
+    }]);
     setName("");
     setPartNumber("");
     setQty(1);
@@ -419,7 +419,7 @@ function PartsTab({
               className="opacity-0 group-hover:opacity-100 text-sm text-kumo-text-danger"
               onClick={async () => {
                 if (confirm(`Delete "${p.name}"?`)) {
-                  await agent.call("deletePart", p.id);
+                  await agent.call("deletePart", [p.id]);
                 }
               }}
             >
@@ -447,11 +447,11 @@ function MaintenanceTab({
 
   const add = async () => {
     if (!type.trim() || !notes.trim()) return;
-    await agent.call("addMaintenance", {
+    await agent.call("addMaintenance", [{
       type,
       notes,
       mileage: mileage ? parseInt(mileage) : undefined,
-    });
+    }]);
     setType("");
     setNotes("");
     setMileage("");
@@ -511,7 +511,7 @@ function MaintenanceTab({
               </div>
               <button
                 className="ml-auto opacity-0 group-hover:opacity-100 text-xs text-kumo-text-danger"
-                onClick={() => agent.call("deleteMaintenance", e.id)}
+                onClick={() => agent.call("deleteMaintenance", [e.id])}
               >
                 Delete
               </button>
@@ -554,7 +554,7 @@ function InfoTab({
           onChange={(e) => setMileage(e.target.value.replace(/\D/g, ""))}
           onBlur={() => {
             const n = parseInt(mileage);
-            if (!isNaN(n)) agent.call("updateMileage", n);
+            if (!isNaN(n)) agent.call("updateMileage", [n]);
           }}
         />
       </div>

@@ -38,7 +38,7 @@ export function GarageView({
       {showForm && (
         <AddVehicleForm
           onSubmit={async (input) => {
-            await agent.call("addVehicle", input);
+            await agent.call("addVehicle", [input]);
             setShowForm(false);
           }}
         />
@@ -52,7 +52,7 @@ export function GarageView({
             onSelect={() => onSelect(v)}
             onDelete={async () => {
               if (confirm(`Remove ${vehicleLabel(v)}? Its data will remain.`)) {
-                await agent.call("removeVehicle", v.id);
+                await agent.call("removeVehicle", [v.id]);
               }
             }}
           />
