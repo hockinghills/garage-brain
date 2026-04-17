@@ -134,6 +134,7 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
 
   private touchProject(id: string) {
     this.sql`UPDATE projects SET updated_at = unixepoch() WHERE id = ${id}`;
+    this.refreshProjectList();
   }
 
   @callable()
@@ -159,6 +160,7 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
 
   @callable()
   purge(): void {
+    this.setState(this.initialState);
     this.ctx.storage.deleteAll();
   }
 
@@ -206,7 +208,6 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
     if (patch.notes !== undefined)
       this.sql`UPDATE projects SET notes = ${patch.notes} WHERE id = ${id}`;
     this.touchProject(id);
-    this.refreshProjectList();
   }
 
   @callable()
@@ -247,7 +248,6 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
       RETURNING *
     `;
     this.touchProject(projectId);
-    this.refreshProjectList();
     return row;
   }
 
@@ -263,7 +263,6 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
       this.sql`UPDATE steps SET done = 1, completed_at = unixepoch() WHERE id = ${stepId}`;
     }
     this.touchProject(row.project_id);
-    this.refreshProjectList();
   }
 
   @callable()
@@ -324,7 +323,6 @@ export class VehicleAgent extends Agent<Env, VehicleState> {
       RETURNING *
     `;
     this.touchProject(projectId);
-    this.refreshProjectList();
     return row;
   }
 

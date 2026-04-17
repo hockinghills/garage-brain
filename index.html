@@ -6,7 +6,10 @@
     <title>Garage Brain</title>
     <script>
       (() => {
-        const mode = localStorage.getItem("mode") || "dark";
+        let mode = "dark";
+        try {
+          mode = localStorage.getItem("mode") || "dark";
+        } catch {}
         document.documentElement.setAttribute("data-mode", mode);
         document.documentElement.style.colorScheme = mode;
       })();

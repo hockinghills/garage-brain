@@ -181,7 +181,7 @@ function AddVehicleForm({
         setBusy(true);
         try {
           await onAdd({
-            year: year ? Number(year) : null,
+            year: parseYear(year),
             make,
             model,
             nickname: nickname || null,
@@ -562,7 +562,7 @@ function EditIdentityForm({
         setBusy(true);
         try {
           await onSave({
-            year: year ? Number(year) : null,
+            year: parseYear(year),
             make: make.trim(),
             model: model.trim(),
             nickname: nickname.trim() || null,
@@ -707,6 +707,13 @@ function PartStatusSelect({
       <option value="installed">installed</option>
     </select>
   );
+}
+
+function parseYear(s: string): number | null {
+  const t = s.trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isInteger(n) && n > 1900 && n < 2100 ? n : null;
 }
 
 const inputCls =
