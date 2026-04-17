@@ -78,10 +78,8 @@ export class GarageAgent extends Agent<Env, GarageState> {
       throw err;
     }
 
-    this.setState({
-      ...this.state,
-      vehicles: [listing, ...this.state.vehicles],
-    });
+    const existing = Array.isArray(this.state?.vehicles) ? this.state.vehicles : [];
+    this.setState({ vehicles: [listing, ...existing] });
     console.log("addVehicle:done", id);
     return listing;
   }
@@ -90,10 +88,8 @@ export class GarageAgent extends Agent<Env, GarageState> {
   async removeVehicle(id: string): Promise<void> {
     const stub = await getAgentByName(this.env.VEHICLE_AGENT, id);
     await stub.purge();
-    this.setState({
-      ...this.state,
-      vehicles: this.state.vehicles.filter((v) => v.id !== id),
-    });
+    const existing = Array.isArray(this.state?.vehicles) ? this.state.vehicles : [];
+    this.setState({ vehicles: existing.filter((v) => v.id !== id) });
   }
 
   @callable()
@@ -101,11 +97,9 @@ export class GarageAgent extends Agent<Env, GarageState> {
     id: string,
     patch: Partial<Omit<VehicleListing, "id" | "created_at">>
   ): void {
+    const existing = Array.isArray(this.state?.vehicles) ? this.state.vehicles : [];
     this.setState({
-      ...this.state,
-      vehicles: this.state.vehicles.map((v) =>
-        v.id === id ? { ...v, ...patch } : v
-      ),
+      vehicles: existing.map((v) => (v.id === id ? { ...v, ...patch } : v)),
     });
   }
 }
